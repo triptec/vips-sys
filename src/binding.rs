@@ -9,7 +9,6 @@ where
     storage: Storage,
     align: [Align; 0],
 }
-
 impl<Storage, Align> __BindgenBitfieldUnit<Storage, Align>
 where
     Storage: AsRef<[u8]> + AsMut<[u8]>,
@@ -18,64 +17,68 @@ where
     pub fn new(storage: Storage) -> Self {
         Self { storage, align: [] }
     }
-
     #[inline]
     pub fn get_bit(&self, index: usize) -> bool {
         debug_assert!(index / 8 < self.storage.as_ref().len());
-
         let byte_index = index / 8;
         let byte = self.storage.as_ref()[byte_index];
-
-        let bit_index = index % 8;
+        let bit_index = if cfg!(target_endian = "big") {
+            7 - (index % 8)
+        } else {
+            index % 8
+        };
         let mask = 1 << bit_index;
-
         byte & mask == mask
     }
-
     #[inline]
     pub fn set_bit(&mut self, index: usize, val: bool) {
         debug_assert!(index / 8 < self.storage.as_ref().len());
-
         let byte_index = index / 8;
         let byte = &mut self.storage.as_mut()[byte_index];
-
-        let bit_index = index % 8;
+        let bit_index = if cfg!(target_endian = "big") {
+            7 - (index % 8)
+        } else {
+            index % 8
+        };
         let mask = 1 << bit_index;
-
         if val {
             *byte |= mask;
         } else {
             *byte &= !mask;
         }
     }
-
     #[inline]
     pub fn get(&self, bit_offset: usize, bit_width: u8) -> u64 {
         debug_assert!(bit_width <= 64);
         debug_assert!(bit_offset / 8 < self.storage.as_ref().len());
         debug_assert!((bit_offset + (bit_width as usize)) / 8 <= self.storage.as_ref().len());
-
         let mut val = 0;
-
         for i in 0..(bit_width as usize) {
             if self.get_bit(i + bit_offset) {
-                val |= 1 << i;
+                let index = if cfg!(target_endian = "big") {
+                    bit_width as usize - 1 - i
+                } else {
+                    i
+                };
+                val |= 1 << index;
             }
         }
-
         val
     }
-
     #[inline]
     pub fn set(&mut self, bit_offset: usize, bit_width: u8, val: u64) {
         debug_assert!(bit_width <= 64);
         debug_assert!(bit_offset / 8 < self.storage.as_ref().len());
         debug_assert!((bit_offset + (bit_width as usize)) / 8 <= self.storage.as_ref().len());
-
         for i in 0..(bit_width as usize) {
             let mask = 1 << i;
             let val_bit_is_set = val & mask == mask;
-            self.set_bit(i + bit_offset, val_bit_is_set);
+            let index = if cfg!(target_endian = "big") {
+                bit_width as usize - 1 - i
+            } else {
+                i
+            };
+            self.set_bit(index + bit_offset, val_bit_is_set);
         }
     }
 }
@@ -107,10 +110,9 @@ pub const _STDC_PREDEF_H: u32 = 1;
 pub const __STDC_IEC_559__: u32 = 1;
 pub const __STDC_IEC_559_COMPLEX__: u32 = 1;
 pub const __STDC_ISO_10646__: u32 = 201706;
-pub const __STDC_NO_THREADS__: u32 = 1;
 pub const __GNU_LIBRARY__: u32 = 6;
 pub const __GLIBC__: u32 = 2;
-pub const __GLIBC_MINOR__: u32 = 26;
+pub const __GLIBC_MINOR__: u32 = 28;
 pub const _SYS_CDEFS_H: u32 = 1;
 pub const __glibc_c99_flexarr_available: u32 = 1;
 pub const __WORDSIZE: u32 = 64;
@@ -223,13 +225,13 @@ pub const G_GINTPTR_MODIFIER: &'static [u8; 2usize] = b"l\0";
 pub const G_GINTPTR_FORMAT: &'static [u8; 3usize] = b"li\0";
 pub const G_GUINTPTR_FORMAT: &'static [u8; 3usize] = b"lu\0";
 pub const GLIB_MAJOR_VERSION: u32 = 2;
-pub const GLIB_MINOR_VERSION: u32 = 56;
-pub const GLIB_MICRO_VERSION: u32 = 1;
+pub const GLIB_MINOR_VERSION: u32 = 60;
+pub const GLIB_MICRO_VERSION: u32 = 0;
 pub const G_VA_COPY_AS_ARRAY: u32 = 1;
 pub const G_HAVE_ISO_VARARGS: u32 = 1;
-pub const G_HAVE_GNUC_VARARGS: u32 = 1;
 pub const G_HAVE_GROWING_STACK: u32 = 0;
 pub const G_HAVE_GNUC_VISIBILITY: u32 = 1;
+pub const G_HAVE_GNUC_VARARGS: u32 = 1;
 pub const G_MODULE_SUFFIX: &'static [u8; 3usize] = b"so\0";
 pub const G_PID_FORMAT: &'static [u8; 2usize] = b"i\0";
 pub const GLIB_SYSDEF_AF_UNIX: u32 = 1;
@@ -265,7 +267,7 @@ pub const TIMER_ABSTIME: u32 = 1;
 pub const __clock_t_defined: u32 = 1;
 pub const __time_t_defined: u32 = 1;
 pub const __struct_tm_defined: u32 = 1;
-pub const __timespec_defined: u32 = 1;
+pub const _STRUCT_TIMESPEC: u32 = 1;
 pub const __clockid_t_defined: u32 = 1;
 pub const __timer_t_defined: u32 = 1;
 pub const __itimerspec_defined: u32 = 1;
@@ -300,6 +302,20 @@ pub const __W_CONTINUED: u32 = 65535;
 pub const __WCOREFLAG: u32 = 128;
 pub const __HAVE_FLOAT128: u32 = 0;
 pub const __HAVE_DISTINCT_FLOAT128: u32 = 0;
+pub const __HAVE_FLOAT64X: u32 = 1;
+pub const __HAVE_FLOAT64X_LONG_DOUBLE: u32 = 1;
+pub const __HAVE_FLOAT16: u32 = 0;
+pub const __HAVE_FLOAT32: u32 = 1;
+pub const __HAVE_FLOAT64: u32 = 1;
+pub const __HAVE_FLOAT32X: u32 = 1;
+pub const __HAVE_FLOAT128X: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT16: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT32: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT64: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT32X: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT64X: u32 = 0;
+pub const __HAVE_DISTINCT_FLOAT128X: u32 = 0;
+pub const __HAVE_FLOATN_NOT_TYPEDEF: u32 = 0;
 pub const __ldiv_t_defined: u32 = 1;
 pub const __lldiv_t_defined: u32 = 1;
 pub const RAND_MAX: u32 = 2147483647;
@@ -325,8 +341,6 @@ pub const __FD_ZERO_STOS: &'static [u8; 6usize] = b"stosq\0";
 pub const __sigset_t_defined: u32 = 1;
 pub const __timeval_defined: u32 = 1;
 pub const FD_SETSIZE: u32 = 1024;
-pub const _SYS_SYSMACROS_H: u32 = 1;
-pub const _BITS_SYSMACROS_H: u32 = 1;
 pub const _BITS_PTHREADTYPES_COMMON_H: u32 = 1;
 pub const _THREAD_SHARED_TYPES_H: u32 = 1;
 pub const _BITS_PTHREADTYPES_ARCH_H: u32 = 1;
@@ -397,6 +411,7 @@ pub const __sigevent_t_defined: u32 = 1;
 pub const __SIGEV_MAX_SIZE: u32 = 64;
 pub const _BITS_SIGEVENT_CONSTS_H: u32 = 1;
 pub const NSIG: u32 = 33;
+pub const _BITS_SIGACTION_H: u32 = 1;
 pub const SA_NOCLDSTOP: u32 = 1;
 pub const SA_NOCLDWAIT: u32 = 2;
 pub const SA_SIGINFO: u32 = 4;
@@ -484,6 +499,7 @@ pub const G_STR_DELIMITERS: &'static [u8; 8usize] = b"_-|> <.\0";
 pub const G_ASCII_DTOSTR_BUF_SIZE: u32 = 39;
 pub const _STRING_H: u32 = 1;
 pub const _STRINGS_H: u32 = 1;
+pub const G_TEST_OPTION_ISOLATE_DIRS: &'static [u8; 13usize] = b"isolate_dirs\0";
 pub const G_USEC_PER_SEC: u32 = 1000000;
 pub const G_URI_RESERVED_CHARS_GENERIC_DELIMITERS: &'static [u8; 8usize] = b":/?#[]@\0";
 pub const G_URI_RESERVED_CHARS_SUBCOMPONENT_DELIMITERS: &'static [u8; 12usize] = b"!$&'()*+,;=\0";
@@ -501,74 +517,27 @@ pub const _BITS_SCHED_H: u32 = 1;
 pub const SCHED_OTHER: u32 = 0;
 pub const SCHED_FIFO: u32 = 1;
 pub const SCHED_RR: u32 = 2;
+pub const _BITS_TYPES_STRUCT_SCHED_PARAM: u32 = 1;
 pub const _BITS_CPU_SET_H: u32 = 1;
 pub const __CPU_SETSIZE: u32 = 1024;
 pub const _BITS_SETJMP_H: u32 = 1;
 pub const PTHREAD_ONCE_INIT: u32 = 0;
 pub const PTHREAD_BARRIER_SERIAL_THREAD: i32 = -1;
 pub const _STDIO_H: u32 = 1;
+pub const _____fpos_t_defined: u32 = 1;
+pub const ____mbstate_t_defined: u32 = 1;
+pub const _____fpos64_t_defined: u32 = 1;
 pub const ____FILE_defined: u32 = 1;
 pub const __FILE_defined: u32 = 1;
-pub const _G_config_h: u32 = 1;
-pub const ____mbstate_t_defined: u32 = 1;
-pub const _G_HAVE_MMAP: u32 = 1;
-pub const _G_HAVE_MREMAP: u32 = 1;
-pub const _G_IO_IO_FILE_VERSION: u32 = 131073;
-pub const _G_BUFSIZ: u32 = 8192;
-pub const _IO_BUFSIZ: u32 = 8192;
-pub const _IO_UNIFIED_JUMPTABLES: u32 = 1;
-pub const EOF: i32 = -1;
-pub const _IOS_INPUT: u32 = 1;
-pub const _IOS_OUTPUT: u32 = 2;
-pub const _IOS_ATEND: u32 = 4;
-pub const _IOS_APPEND: u32 = 8;
-pub const _IOS_TRUNC: u32 = 16;
-pub const _IOS_NOCREATE: u32 = 32;
-pub const _IOS_NOREPLACE: u32 = 64;
-pub const _IOS_BIN: u32 = 128;
-pub const _IO_MAGIC: u32 = 4222418944;
-pub const _OLD_STDIO_MAGIC: u32 = 4206624768;
-pub const _IO_MAGIC_MASK: u32 = 4294901760;
-pub const _IO_USER_BUF: u32 = 1;
-pub const _IO_UNBUFFERED: u32 = 2;
-pub const _IO_NO_READS: u32 = 4;
-pub const _IO_NO_WRITES: u32 = 8;
+pub const __struct_FILE_defined: u32 = 1;
 pub const _IO_EOF_SEEN: u32 = 16;
 pub const _IO_ERR_SEEN: u32 = 32;
-pub const _IO_DELETE_DONT_CLOSE: u32 = 64;
-pub const _IO_LINKED: u32 = 128;
-pub const _IO_IN_BACKUP: u32 = 256;
-pub const _IO_LINE_BUF: u32 = 512;
-pub const _IO_TIED_PUT_GET: u32 = 1024;
-pub const _IO_CURRENTLY_PUTTING: u32 = 2048;
-pub const _IO_IS_APPENDING: u32 = 4096;
-pub const _IO_IS_FILEBUF: u32 = 8192;
-pub const _IO_BAD_SEEN: u32 = 16384;
 pub const _IO_USER_LOCK: u32 = 32768;
-pub const _IO_FLAGS2_MMAP: u32 = 1;
-pub const _IO_FLAGS2_NOTCANCEL: u32 = 2;
-pub const _IO_FLAGS2_USER_WBUF: u32 = 8;
-pub const _IO_SKIPWS: u32 = 1;
-pub const _IO_LEFT: u32 = 2;
-pub const _IO_RIGHT: u32 = 4;
-pub const _IO_INTERNAL: u32 = 8;
-pub const _IO_DEC: u32 = 16;
-pub const _IO_OCT: u32 = 32;
-pub const _IO_HEX: u32 = 64;
-pub const _IO_SHOWBASE: u32 = 128;
-pub const _IO_SHOWPOINT: u32 = 256;
-pub const _IO_UPPERCASE: u32 = 512;
-pub const _IO_SHOWPOS: u32 = 1024;
-pub const _IO_SCIENTIFIC: u32 = 2048;
-pub const _IO_FIXED: u32 = 4096;
-pub const _IO_UNITBUF: u32 = 8192;
-pub const _IO_STDIO: u32 = 16384;
-pub const _IO_DONT_CLOSE: u32 = 32768;
-pub const _IO_BOOLALPHA: u32 = 65536;
 pub const _IOFBF: u32 = 0;
 pub const _IOLBF: u32 = 1;
 pub const _IONBF: u32 = 2;
 pub const BUFSIZ: u32 = 8192;
+pub const EOF: i32 = -1;
 pub const SEEK_SET: u32 = 0;
 pub const SEEK_CUR: u32 = 1;
 pub const SEEK_END: u32 = 2;
@@ -655,12 +624,6 @@ pub const __MATH_DECLARE_LDOUBLE: u32 = 1;
 pub const MATH_ERRNO: u32 = 1;
 pub const MATH_ERREXCEPT: u32 = 2;
 pub const math_errhandling: u32 = 3;
-pub const DOMAIN: u32 = 1;
-pub const SING: u32 = 2;
-pub const OVERFLOW: u32 = 3;
-pub const UNDERFLOW: u32 = 4;
-pub const TLOSS: u32 = 5;
-pub const PLOSS: u32 = 6;
 pub const M_E: f64 = 2.718281828459045;
 pub const M_LOG2E: f64 = 1.4426950408889634;
 pub const M_LOG10E: f64 = 0.4342944819032518;
@@ -676,14 +639,14 @@ pub const M_SQRT2: f64 = 1.4142135623730951;
 pub const M_SQRT1_2: f64 = 0.7071067811865476;
 pub const VIPS_PI: f64 = 3.141592653589793;
 pub const VIPS_PATH_MAX: u32 = 4096;
-pub const VIPS_VERSION: &'static [u8; 6usize] = b"8.6.1\0";
-pub const VIPS_VERSION_STRING: &'static [u8; 35usize] = b"8.6.1-Wed Jan  3 08:34:04 UTC 2018\0";
+pub const VIPS_VERSION: &'static [u8; 6usize] = b"8.8.0\0";
+pub const VIPS_VERSION_STRING: &'static [u8; 35usize] = b"8.8.0-Fri Feb 15 14:28:32 UTC 2019\0";
 pub const VIPS_MAJOR_VERSION: u32 = 8;
-pub const VIPS_MINOR_VERSION: u32 = 6;
-pub const VIPS_MICRO_VERSION: u32 = 1;
-pub const VIPS_LIBRARY_CURRENT: u32 = 50;
-pub const VIPS_LIBRARY_REVISION: u32 = 1;
-pub const VIPS_LIBRARY_AGE: u32 = 8;
+pub const VIPS_MINOR_VERSION: u32 = 8;
+pub const VIPS_MICRO_VERSION: u32 = 0;
+pub const VIPS_LIBRARY_CURRENT: u32 = 52;
+pub const VIPS_LIBRARY_REVISION: u32 = 0;
+pub const VIPS_LIBRARY_AGE: u32 = 10;
 pub const VIPS_SONAME: &'static [u8; 14usize] = b"libvips.so.42\0";
 pub const VIPS_EXEEXT: &'static [u8; 1usize] = b"\0";
 pub const VIPS_ENABLE_DEPRECATED: u32 = 1;
@@ -713,6 +676,7 @@ pub const VIPS_META_LOADER: &'static [u8; 12usize] = b"vips-loader\0";
 pub const VIPS_META_SEQUENTIAL: &'static [u8; 16usize] = b"vips-sequential\0";
 pub const VIPS_META_ORIENTATION: &'static [u8; 12usize] = b"orientation\0";
 pub const VIPS_META_PAGE_HEIGHT: &'static [u8; 12usize] = b"page-height\0";
+pub const VIPS_META_N_PAGES: &'static [u8; 8usize] = b"n-pages\0";
 pub const VIPS_D93_X0: f64 = 89.74;
 pub const VIPS_D93_Y0: f64 = 100.0;
 pub const VIPS_D93_Z0: f64 = 130.77;
@@ -743,61 +707,6 @@ pub const VIPS_E_Z0: f64 = 100.0;
 pub const VIPS_D3250_X0: f64 = 105.659;
 pub const VIPS_D3250_Y0: f64 = 100.0;
 pub const VIPS_D3250_Z0: f64 = 45.8501;
-pub const VIPS_META_IPCT_NAME: &'static [u8; 10usize] = b"iptc-data\0";
-pub const IM_D93_X0: f64 = 89.74;
-pub const IM_D93_Y0: f64 = 100.0;
-pub const IM_D93_Z0: f64 = 130.77;
-pub const IM_D75_X0: f64 = 94.9682;
-pub const IM_D75_Y0: f64 = 100.0;
-pub const IM_D75_Z0: f64 = 122.571;
-pub const IM_D65_X0: f64 = 95.047;
-pub const IM_D65_Y0: f64 = 100.0;
-pub const IM_D65_Z0: f64 = 108.8827;
-pub const IM_D55_X0: f64 = 95.6831;
-pub const IM_D55_Y0: f64 = 100.0;
-pub const IM_D55_Z0: f64 = 92.0871;
-pub const IM_D50_X0: f64 = 96.425;
-pub const IM_D50_Y0: f64 = 100.0;
-pub const IM_D50_Z0: f64 = 82.468;
-pub const IM_A_X0: f64 = 109.8503;
-pub const IM_A_Y0: f64 = 100.0;
-pub const IM_A_Z0: f64 = 35.5849;
-pub const IM_B_X0: f64 = 99.072;
-pub const IM_B_Y0: f64 = 100.0;
-pub const IM_B_Z0: f64 = 85.223;
-pub const IM_C_X0: f64 = 98.07;
-pub const IM_C_Y0: f64 = 100.0;
-pub const IM_C_Z0: f64 = 118.23;
-pub const IM_E_X0: f64 = 100.0;
-pub const IM_E_Y0: f64 = 100.0;
-pub const IM_E_Z0: f64 = 100.0;
-pub const IM_D3250_X0: f64 = 105.659;
-pub const IM_D3250_Y0: f64 = 100.0;
-pub const IM_D3250_Z0: f64 = 45.8501;
-pub const IM_PI: f64 = 3.141592653589793;
-pub const IM_META_EXIF_NAME: &'static [u8; 10usize] = b"exif-data\0";
-pub const IM_META_ICC_NAME: &'static [u8; 17usize] = b"icc-profile-data\0";
-pub const IM_META_RESOLUTION_UNIT: &'static [u8; 16usize] = b"resolution-unit\0";
-pub const IM_VERSION_STRING: &'static [u8; 35usize] = b"8.6.1-Wed Jan  3 08:34:04 UTC 2018\0";
-pub const IM_MAJOR_VERSION: u32 = 8;
-pub const IM_MINOR_VERSION: u32 = 6;
-pub const IM_MICRO_VERSION: u32 = 1;
-pub const IM_EXEEXT: &'static [u8; 1usize] = b"\0";
-pub const IM_SIZEOF_HEADER: u32 = 64;
-pub const IM_TYPE_IMAGEVEC: &'static [u8; 9usize] = b"imagevec\0";
-pub const IM_TYPE_DOUBLEVEC: &'static [u8; 10usize] = b"doublevec\0";
-pub const IM_TYPE_INTVEC: &'static [u8; 7usize] = b"intvec\0";
-pub const IM_TYPE_DOUBLE: &'static [u8; 7usize] = b"double\0";
-pub const IM_TYPE_INT: &'static [u8; 8usize] = b"integer\0";
-pub const IM_TYPE_COMPLEX: &'static [u8; 8usize] = b"complex\0";
-pub const IM_TYPE_STRING: &'static [u8; 7usize] = b"string\0";
-pub const IM_TYPE_IMASK: &'static [u8; 8usize] = b"intmask\0";
-pub const IM_TYPE_DMASK: &'static [u8; 11usize] = b"doublemask\0";
-pub const IM_TYPE_IMAGE: &'static [u8; 6usize] = b"image\0";
-pub const IM_TYPE_DISPLAY: &'static [u8; 8usize] = b"display\0";
-pub const IM_TYPE_GVALUE: &'static [u8; 7usize] = b"gvalue\0";
-pub const IM_TYPE_INTERPOLATE: &'static [u8; 12usize] = b"interpolate\0";
-pub const IM_MAX_ARGS: u32 = 1000;
 pub type wchar_t = ::std::os::raw::c_int;
 pub type gint8 = ::std::os::raw::c_schar;
 pub type guint8 = ::std::os::raw::c_uchar;
@@ -825,6 +734,14 @@ pub type __int32_t = ::std::os::raw::c_int;
 pub type __uint32_t = ::std::os::raw::c_uint;
 pub type __int64_t = ::std::os::raw::c_long;
 pub type __uint64_t = ::std::os::raw::c_ulong;
+pub type __int_least8_t = __int8_t;
+pub type __uint_least8_t = __uint8_t;
+pub type __int_least16_t = __int16_t;
+pub type __uint_least16_t = __uint16_t;
+pub type __int_least32_t = __int32_t;
+pub type __uint_least32_t = __uint32_t;
+pub type __int_least64_t = __int64_t;
+pub type __uint_least64_t = __uint64_t;
 pub type __quad_t = ::std::os::raw::c_long;
 pub type __u_quad_t = ::std::os::raw::c_ulong;
 pub type __intmax_t = ::std::os::raw::c_long;
@@ -890,7 +807,6 @@ pub type __ssize_t = ::std::os::raw::c_long;
 pub type __syscall_slong_t = ::std::os::raw::c_long;
 pub type __syscall_ulong_t = ::std::os::raw::c_ulong;
 pub type __loff_t = __off64_t;
-pub type __qaddr_t = *mut __quad_t;
 pub type __caddr_t = *mut ::std::os::raw::c_char;
 pub type __intptr_t = ::std::os::raw::c_long;
 pub type __socklen_t = ::std::os::raw::c_uint;
@@ -1383,10 +1299,10 @@ pub union _GFloatIEEE754 {
     _bindgen_union_align: u32,
 }
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Debug, Copy, Clone)]
 pub struct _GFloatIEEE754__bindgen_ty_1 {
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize], u32>,
-    pub __bindgen_align: [u32; 0usize],
 }
 #[test]
 fn bindgen_test_layout__GFloatIEEE754__bindgen_ty_1() {
@@ -1499,10 +1415,10 @@ pub union _GDoubleIEEE754 {
     _bindgen_union_align: u64,
 }
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Debug, Copy, Clone)]
 pub struct _GDoubleIEEE754__bindgen_ty_1 {
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 8usize], u32>,
-    pub __bindgen_align: [u32; 0usize],
 }
 #[test]
 fn bindgen_test_layout__GDoubleIEEE754__bindgen_ty_1() {
@@ -1663,6 +1579,8 @@ fn bindgen_test_layout__GTimeVal() {
         )
     );
 }
+pub type grefcount = gint;
+pub type gatomicrefcount = gint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _GBytes {
@@ -1891,6 +1809,12 @@ extern "C" {
 }
 extern "C" {
     pub fn g_ptr_array_remove_index_fast(array: *mut GPtrArray, index_: guint) -> gpointer;
+}
+extern "C" {
+    pub fn g_ptr_array_steal_index(array: *mut GPtrArray, index_: guint) -> gpointer;
+}
+extern "C" {
+    pub fn g_ptr_array_steal_index_fast(array: *mut GPtrArray, index_: guint) -> gpointer;
 }
 extern "C" {
     pub fn g_ptr_array_remove(array: *mut GPtrArray, data: gpointer) -> gboolean;
@@ -2347,6 +2271,10 @@ extern "C" {
 extern "C" {
     pub fn g_bit_storage(number: gulong) -> guint;
 }
+pub type _Float32 = f32;
+pub type _Float64 = f64;
+pub type _Float32x = f64;
+pub type _Float64x = u128;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct div_t {
@@ -2495,7 +2423,7 @@ extern "C" {
     pub fn strtold(
         __nptr: *const ::std::os::raw::c_char,
         __endptr: *mut *mut ::std::os::raw::c_char,
-    ) -> f64;
+    ) -> u128;
 }
 extern "C" {
     pub fn strtol(
@@ -2689,18 +2617,6 @@ extern "C" {
         __timeout: *const timespec,
         __sigmask: *const __sigset_t,
     ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn gnu_dev_major(__dev: __dev_t) -> ::std::os::raw::c_uint;
-}
-extern "C" {
-    pub fn gnu_dev_minor(__dev: __dev_t) -> ::std::os::raw::c_uint;
-}
-extern "C" {
-    pub fn gnu_dev_makedev(
-        __major: ::std::os::raw::c_uint,
-        __minor: ::std::os::raw::c_uint,
-    ) -> __dev_t;
 }
 pub type blksize_t = __blksize_t;
 pub type blkcnt_t = __blkcnt_t;
@@ -3973,22 +3889,25 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn malloc(__size: usize) -> *mut ::std::os::raw::c_void;
+    pub fn malloc(__size: ::std::os::raw::c_ulong) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
-    pub fn calloc(__nmemb: usize, __size: usize) -> *mut ::std::os::raw::c_void;
+    pub fn calloc(
+        __nmemb: ::std::os::raw::c_ulong,
+        __size: ::std::os::raw::c_ulong,
+    ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn realloc(
         __ptr: *mut ::std::os::raw::c_void,
-        __size: usize,
+        __size: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn free(__ptr: *mut ::std::os::raw::c_void);
 }
 extern "C" {
-    pub fn alloca(__size: usize) -> *mut ::std::os::raw::c_void;
+    pub fn alloca(__size: ::std::os::raw::c_ulong) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn valloc(__size: usize) -> *mut ::std::os::raw::c_void;
@@ -4078,8 +3997,10 @@ extern "C" {
     ) -> *mut ::std::os::raw::c_char;
 }
 pub type __compar_fn_t = ::std::option::Option<
-    unsafe extern "C" fn(arg1: *const ::std::os::raw::c_void, arg2: *const ::std::os::raw::c_void)
-        -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(
+        arg1: *const ::std::os::raw::c_void,
+        arg2: *const ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int,
 >;
 extern "C" {
     pub fn bsearch(
@@ -4144,7 +4065,7 @@ extern "C" {
 }
 extern "C" {
     pub fn qecvt(
-        __value: f64,
+        __value: u128,
         __ndigit: ::std::os::raw::c_int,
         __decpt: *mut ::std::os::raw::c_int,
         __sign: *mut ::std::os::raw::c_int,
@@ -4152,7 +4073,7 @@ extern "C" {
 }
 extern "C" {
     pub fn qfcvt(
-        __value: f64,
+        __value: u128,
         __ndigit: ::std::os::raw::c_int,
         __decpt: *mut ::std::os::raw::c_int,
         __sign: *mut ::std::os::raw::c_int,
@@ -4160,7 +4081,7 @@ extern "C" {
 }
 extern "C" {
     pub fn qgcvt(
-        __value: f64,
+        __value: u128,
         __ndigit: ::std::os::raw::c_int,
         __buf: *mut ::std::os::raw::c_char,
     ) -> *mut ::std::os::raw::c_char;
@@ -4187,7 +4108,7 @@ extern "C" {
 }
 extern "C" {
     pub fn qecvt_r(
-        __value: f64,
+        __value: u128,
         __ndigit: ::std::os::raw::c_int,
         __decpt: *mut ::std::os::raw::c_int,
         __sign: *mut ::std::os::raw::c_int,
@@ -4197,7 +4118,7 @@ extern "C" {
 }
 extern "C" {
     pub fn qfcvt_r(
-        __value: f64,
+        __value: u128,
         __ndigit: ::std::os::raw::c_int,
         __decpt: *mut ::std::os::raw::c_int,
         __sign: *mut ::std::os::raw::c_int,
@@ -4230,7 +4151,7 @@ extern "C" {
 extern "C" {
     pub fn getsubopt(
         __optionp: *mut *mut ::std::os::raw::c_char,
-        __tokens: *const *const ::std::os::raw::c_char,
+        __tokens: *const *mut ::std::os::raw::c_char,
         __valuep: *mut *mut ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
 }
@@ -4620,6 +4541,7 @@ extern "C" {
     pub fn g_get_num_processors() -> guint;
 }
 pub type GMutexLocker = ::std::os::raw::c_void;
+pub type GRecMutexLocker = ::std::os::raw::c_void;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _GAsyncQueue {
@@ -4771,7 +4693,7 @@ fn bindgen_test_layout_sigval() {
         )
     );
 }
-pub type sigval_t = sigval;
+pub type __sigval_t = sigval;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct siginfo_t {
@@ -4850,7 +4772,7 @@ fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_1() {
 pub struct siginfo_t__bindgen_ty_1__bindgen_ty_2 {
     pub si_tid: ::std::os::raw::c_int,
     pub si_overrun: ::std::os::raw::c_int,
-    pub si_sigval: sigval_t,
+    pub si_sigval: __sigval_t,
 }
 #[test]
 fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_2() {
@@ -4915,7 +4837,7 @@ fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_2() {
 pub struct siginfo_t__bindgen_ty_1__bindgen_ty_3 {
     pub si_pid: __pid_t,
     pub si_uid: __uid_t,
-    pub si_sigval: sigval_t,
+    pub si_sigval: __sigval_t,
 }
 #[test]
 fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_3() {
@@ -5110,7 +5032,8 @@ fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_5__bindgen_ty_1__bind
         unsafe {
             &(*(::std::ptr::null::<
                 siginfo_t__bindgen_ty_1__bindgen_ty_5__bindgen_ty_1__bindgen_ty_1,
-            >()))._lower as *const _ as usize
+            >()))
+            ._lower as *const _ as usize
         },
         0usize,
         concat!(
@@ -5124,7 +5047,8 @@ fn bindgen_test_layout_siginfo_t__bindgen_ty_1__bindgen_ty_5__bindgen_ty_1__bind
         unsafe {
             &(*(::std::ptr::null::<
                 siginfo_t__bindgen_ty_1__bindgen_ty_5__bindgen_ty_1__bindgen_ty_1,
-            >()))._upper as *const _ as usize
+            >()))
+            ._upper as *const _ as usize
         },
         8usize,
         concat!(
@@ -5580,11 +5504,15 @@ pub enum _bindgen_ty_3 {
 }
 pub const SEGV_MAPERR: _bindgen_ty_4 = _bindgen_ty_4::SEGV_MAPERR;
 pub const SEGV_ACCERR: _bindgen_ty_4 = _bindgen_ty_4::SEGV_ACCERR;
+pub const SEGV_BNDERR: _bindgen_ty_4 = _bindgen_ty_4::SEGV_BNDERR;
+pub const SEGV_PKUERR: _bindgen_ty_4 = _bindgen_ty_4::SEGV_PKUERR;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_4 {
     SEGV_MAPERR = 1,
     SEGV_ACCERR = 2,
+    SEGV_BNDERR = 3,
+    SEGV_PKUERR = 4,
 }
 pub const BUS_ADRALN: _bindgen_ty_5 = _bindgen_ty_5::BUS_ADRALN;
 pub const BUS_ADRERR: _bindgen_ty_5 = _bindgen_ty_5::BUS_ADRERR;
@@ -5632,10 +5560,11 @@ pub enum _bindgen_ty_7 {
     POLL_PRI = 5,
     POLL_HUP = 6,
 }
+pub type sigval_t = __sigval_t;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct sigevent {
-    pub sigev_value: sigval_t,
+    pub sigev_value: __sigval_t,
     pub sigev_signo: ::std::os::raw::c_int,
     pub sigev_notify: ::std::os::raw::c_int,
     pub _sigev_un: sigevent__bindgen_ty_1,
@@ -5651,7 +5580,7 @@ pub union sigevent__bindgen_ty_1 {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct sigevent__bindgen_ty_1__bindgen_ty_1 {
-    pub _function: ::std::option::Option<unsafe extern "C" fn(arg1: sigval_t)>,
+    pub _function: ::std::option::Option<unsafe extern "C" fn(arg1: __sigval_t)>,
     pub _attribute: *mut pthread_attr_t,
 }
 #[test]
@@ -7176,12 +7105,13 @@ pub struct ucontext_t {
     pub uc_mcontext: mcontext_t,
     pub uc_sigmask: sigset_t,
     pub __fpregs_mem: _libc_fpstate,
+    pub __ssp: [::std::os::raw::c_ulonglong; 4usize],
 }
 #[test]
 fn bindgen_test_layout_ucontext_t() {
     assert_eq!(
         ::std::mem::size_of::<ucontext_t>(),
-        936usize,
+        968usize,
         concat!("Size of: ", stringify!(ucontext_t))
     );
     assert_eq!(
@@ -7247,6 +7177,16 @@ fn bindgen_test_layout_ucontext_t() {
             stringify!(ucontext_t),
             "::",
             stringify!(__fpregs_mem)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<ucontext_t>())).__ssp as *const _ as usize },
+        936usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ucontext_t),
+            "::",
+            stringify!(__ssp)
         )
     );
 }
@@ -7744,6 +7684,9 @@ extern "C" {
     pub fn g_get_language_names() -> *const *const gchar;
 }
 extern "C" {
+    pub fn g_get_language_names_with_category(category_name: *const gchar) -> *const *const gchar;
+}
+extern "C" {
     pub fn g_get_locale_variants(locale: *const gchar) -> *mut *mut gchar;
 }
 #[repr(u32)]
@@ -7932,7 +7875,7 @@ extern "C" {
     pub fn g_filename_display_name(filename: *const gchar) -> *mut gchar;
 }
 extern "C" {
-    pub fn g_get_filename_charsets(charsets: *mut *mut *const gchar) -> gboolean;
+    pub fn g_get_filename_charsets(filename_charsets: *mut *mut *const gchar) -> gboolean;
 }
 extern "C" {
     pub fn g_filename_display_basename(filename: *const gchar) -> *mut gchar;
@@ -8076,10 +8019,10 @@ pub enum GDateMonth {
     G_DATE_DECEMBER = 12,
 }
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Debug, Copy, Clone)]
 pub struct _GDate {
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 8usize], u32>,
-    pub __bindgen_align: [u32; 0usize],
 }
 #[test]
 fn bindgen_test_layout__GDate() {
@@ -8374,6 +8317,9 @@ extern "C" {
     pub fn g_time_zone_new_local() -> *mut GTimeZone;
 }
 extern "C" {
+    pub fn g_time_zone_new_offset(seconds: gint32) -> *mut GTimeZone;
+}
+extern "C" {
     pub fn g_time_zone_ref(tz: *mut GTimeZone) -> *mut GTimeZone;
 }
 extern "C" {
@@ -8397,6 +8343,9 @@ extern "C" {
 }
 extern "C" {
     pub fn g_time_zone_is_dst(tz: *mut GTimeZone, interval: gint) -> gboolean;
+}
+extern "C" {
+    pub fn g_time_zone_get_identifier(tz: *mut GTimeZone) -> *const gchar;
 }
 pub type GTimeSpan = gint64;
 #[repr(C)]
@@ -8570,6 +8519,9 @@ extern "C" {
     pub fn g_date_time_get_utc_offset(datetime: *mut GDateTime) -> GTimeSpan;
 }
 extern "C" {
+    pub fn g_date_time_get_timezone(datetime: *mut GDateTime) -> *mut GTimeZone;
+}
+extern "C" {
     pub fn g_date_time_get_timezone_abbreviation(datetime: *mut GDateTime) -> *const gchar;
 }
 extern "C" {
@@ -8726,8 +8678,10 @@ extern "C" {
             unsafe extern "C" fn(arg1: *const dirent) -> ::std::os::raw::c_int,
         >,
         __cmp: ::std::option::Option<
-            unsafe extern "C" fn(arg1: *mut *const dirent, arg2: *mut *const dirent)
-                -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(
+                arg1: *mut *const dirent,
+                arg2: *mut *const dirent,
+            ) -> ::std::os::raw::c_int,
         >,
     ) -> ::std::os::raw::c_int;
 }
@@ -8914,6 +8868,10 @@ extern "C" {
     pub fn g_path_get_dirname(file_name: *const gchar) -> *mut gchar;
 }
 extern "C" {
+    pub fn g_canonicalize_filename(filename: *const gchar, relative_to: *const gchar)
+        -> *mut gchar;
+}
+extern "C" {
     pub fn g_strip_context(msgid: *const gchar, msgval: *const gchar) -> *const gchar;
 }
 extern "C" {
@@ -9092,10 +9050,15 @@ extern "C" {
     pub fn g_mem_profile();
 }
 pub type GNode = _GNode;
-pub const GTraverseFlags_G_TRAVERSE_MASK: GTraverseFlags = GTraverseFlags::G_TRAVERSE_ALL;
-pub const GTraverseFlags_G_TRAVERSE_LEAFS: GTraverseFlags = GTraverseFlags::G_TRAVERSE_LEAVES;
-pub const GTraverseFlags_G_TRAVERSE_NON_LEAFS: GTraverseFlags =
-    GTraverseFlags::G_TRAVERSE_NON_LEAVES;
+impl GTraverseFlags {
+    pub const G_TRAVERSE_MASK: GTraverseFlags = GTraverseFlags::G_TRAVERSE_ALL;
+}
+impl GTraverseFlags {
+    pub const G_TRAVERSE_LEAFS: GTraverseFlags = GTraverseFlags::G_TRAVERSE_LEAVES;
+}
+impl GTraverseFlags {
+    pub const G_TRAVERSE_NON_LEAFS: GTraverseFlags = GTraverseFlags::G_TRAVERSE_NON_LEAVES;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GTraverseFlags {
@@ -9587,6 +9550,14 @@ extern "C" {
 }
 extern "C" {
     pub fn g_hash_table_steal(hash_table: *mut GHashTable, key: gconstpointer) -> gboolean;
+}
+extern "C" {
+    pub fn g_hash_table_steal_extended(
+        hash_table: *mut GHashTable,
+        lookup_key: gconstpointer,
+        stolen_key: *mut gpointer,
+        stolen_value: *mut gpointer,
+    ) -> gboolean;
 }
 extern "C" {
     pub fn g_hash_table_steal_all(hash_table: *mut GHashTable);
@@ -10585,8 +10556,11 @@ pub struct _GSourceFuncs {
     >,
     pub check: ::std::option::Option<unsafe extern "C" fn(source: *mut GSource) -> gboolean>,
     pub dispatch: ::std::option::Option<
-        unsafe extern "C" fn(source: *mut GSource, callback: GSourceFunc, user_data: gpointer)
-            -> gboolean,
+        unsafe extern "C" fn(
+            source: *mut GSource,
+            callback: GSourceFunc,
+            user_data: gpointer,
+        ) -> gboolean,
     >,
     pub finalize: ::std::option::Option<unsafe extern "C" fn(source: *mut GSource)>,
     pub closure_callback: GSourceFunc,
@@ -11242,6 +11216,13 @@ pub enum GUnicodeScript {
     G_UNICODE_SCRIPT_NUSHU = 139,
     G_UNICODE_SCRIPT_SOYOMBO = 140,
     G_UNICODE_SCRIPT_ZANABAZAR_SQUARE = 141,
+    G_UNICODE_SCRIPT_DOGRA = 142,
+    G_UNICODE_SCRIPT_GUNJALA_GONDI = 143,
+    G_UNICODE_SCRIPT_HANIFI_ROHINGYA = 144,
+    G_UNICODE_SCRIPT_MAKASAR = 145,
+    G_UNICODE_SCRIPT_MEDEFAIDRIN = 146,
+    G_UNICODE_SCRIPT_OLD_SOGDIAN = 147,
+    G_UNICODE_SCRIPT_SOGDIAN = 148,
 }
 extern "C" {
     pub fn g_unicode_script_to_iso15924(script: GUnicodeScript) -> guint32;
@@ -11356,7 +11337,7 @@ extern "C" {
 }
 extern "C" {
     #[link_name = "\u{1}g_utf8_skip"]
-    pub static mut g_utf8_skip: *const gchar;
+    pub static g_utf8_skip: *const gchar;
 }
 extern "C" {
     pub fn g_utf8_get_char(p: *const gchar) -> gunichar;
@@ -11465,6 +11446,13 @@ extern "C" {
     pub fn g_utf8_validate(str: *const gchar, max_len: gssize, end: *mut *const gchar) -> gboolean;
 }
 extern "C" {
+    pub fn g_utf8_validate_len(
+        str: *const gchar,
+        max_len: gsize,
+        end: *mut *const gchar,
+    ) -> gboolean;
+}
+extern "C" {
     pub fn g_utf8_strup(str: *const gchar, len: gssize) -> *mut gchar;
 }
 extern "C" {
@@ -11473,11 +11461,18 @@ extern "C" {
 extern "C" {
     pub fn g_utf8_casefold(str: *const gchar, len: gssize) -> *mut gchar;
 }
-pub const GNormalizeMode_G_NORMALIZE_NFD: GNormalizeMode = GNormalizeMode::G_NORMALIZE_DEFAULT;
-pub const GNormalizeMode_G_NORMALIZE_NFC: GNormalizeMode =
-    GNormalizeMode::G_NORMALIZE_DEFAULT_COMPOSE;
-pub const GNormalizeMode_G_NORMALIZE_NFKD: GNormalizeMode = GNormalizeMode::G_NORMALIZE_ALL;
-pub const GNormalizeMode_G_NORMALIZE_NFKC: GNormalizeMode = GNormalizeMode::G_NORMALIZE_ALL_COMPOSE;
+impl GNormalizeMode {
+    pub const G_NORMALIZE_NFD: GNormalizeMode = GNormalizeMode::G_NORMALIZE_DEFAULT;
+}
+impl GNormalizeMode {
+    pub const G_NORMALIZE_NFC: GNormalizeMode = GNormalizeMode::G_NORMALIZE_DEFAULT_COMPOSE;
+}
+impl GNormalizeMode {
+    pub const G_NORMALIZE_NFKD: GNormalizeMode = GNormalizeMode::G_NORMALIZE_ALL;
+}
+impl GNormalizeMode {
+    pub const G_NORMALIZE_NFKC: GNormalizeMode = GNormalizeMode::G_NORMALIZE_ALL_COMPOSE;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GNormalizeMode {
@@ -11720,8 +11715,12 @@ pub enum GSeekType {
     G_SEEK_SET = 1,
     G_SEEK_END = 2,
 }
-pub const GIOFlags_G_IO_FLAG_IS_WRITEABLE: GIOFlags = GIOFlags::G_IO_FLAG_IS_WRITABLE;
-pub const GIOFlags_G_IO_FLAG_GET_MASK: GIOFlags = GIOFlags::G_IO_FLAG_MASK;
+impl GIOFlags {
+    pub const G_IO_FLAG_IS_WRITEABLE: GIOFlags = GIOFlags::G_IO_FLAG_IS_WRITABLE;
+}
+impl GIOFlags {
+    pub const G_IO_FLAG_GET_MASK: GIOFlags = GIOFlags::G_IO_FLAG_MASK;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GIOFlags {
@@ -12011,8 +12010,11 @@ impl _GIOChannel {
     }
 }
 pub type GIOFunc = ::std::option::Option<
-    unsafe extern "C" fn(source: *mut GIOChannel, condition: GIOCondition, data: gpointer)
-        -> gboolean,
+    unsafe extern "C" fn(
+        source: *mut GIOChannel,
+        condition: GIOCondition,
+        data: gpointer,
+    ) -> gboolean,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -12051,8 +12053,11 @@ pub struct _GIOFuncs {
     >,
     pub io_free: ::std::option::Option<unsafe extern "C" fn(channel: *mut GIOChannel)>,
     pub io_set_flags: ::std::option::Option<
-        unsafe extern "C" fn(channel: *mut GIOChannel, flags: GIOFlags, err: *mut *mut GError)
-            -> GIOStatus,
+        unsafe extern "C" fn(
+            channel: *mut GIOChannel,
+            flags: GIOFlags,
+            err: *mut *mut GError,
+        ) -> GIOStatus,
     >,
     pub io_get_flags:
         ::std::option::Option<unsafe extern "C" fn(channel: *mut GIOChannel) -> GIOFlags>,
@@ -13129,6 +13134,9 @@ extern "C" {
 extern "C" {
     pub fn g_variant_type_checked_(arg1: *const gchar) -> *const GVariantType;
 }
+extern "C" {
+    pub fn g_variant_type_string_get_depth_(type_string: *const gchar) -> gsize;
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _GVariant {
@@ -13191,7 +13199,7 @@ extern "C" {
     pub fn g_variant_new_boolean(value: gboolean) -> *mut GVariant;
 }
 extern "C" {
-    pub fn g_variant_new_byte(value: guchar) -> *mut GVariant;
+    pub fn g_variant_new_byte(value: guint8) -> *mut GVariant;
 }
 extern "C" {
     pub fn g_variant_new_int16(value: gint16) -> *mut GVariant;
@@ -13268,7 +13276,7 @@ extern "C" {
     pub fn g_variant_get_boolean(value: *mut GVariant) -> gboolean;
 }
 extern "C" {
-    pub fn g_variant_get_byte(value: *mut GVariant) -> guchar;
+    pub fn g_variant_get_byte(value: *mut GVariant) -> guint8;
 }
 extern "C" {
     pub fn g_variant_get_int16(value: *mut GVariant) -> gint16;
@@ -13342,15 +13350,12 @@ extern "C" {
 extern "C" {
     pub fn g_variant_new_array(
         child_type: *const GVariantType,
-        children: *const *const GVariant,
+        children: *const *mut GVariant,
         n_children: gsize,
     ) -> *mut GVariant;
 }
 extern "C" {
-    pub fn g_variant_new_tuple(
-        children: *const *const GVariant,
-        n_children: gsize,
-    ) -> *mut GVariant;
+    pub fn g_variant_new_tuple(children: *const *mut GVariant, n_children: gsize) -> *mut GVariant;
 }
 extern "C" {
     pub fn g_variant_new_dict_entry(key: *mut GVariant, value: *mut GVariant) -> *mut GVariant;
@@ -14620,6 +14625,9 @@ extern "C" {
     pub fn g_queue_is_empty(queue: *mut GQueue) -> gboolean;
 }
 extern "C" {
+    pub fn g_queue_clear_full(queue: *mut GQueue, free_func: GDestroyNotify);
+}
+extern "C" {
     pub fn g_queue_get_length(queue: *mut GQueue) -> guint;
 }
 extern "C" {
@@ -14784,6 +14792,96 @@ extern "C" {
 extern "C" {
     pub fn g_random_double_range(begin: gdouble, end: gdouble) -> gdouble;
 }
+extern "C" {
+    pub fn g_rc_box_alloc(block_size: gsize) -> gpointer;
+}
+extern "C" {
+    pub fn g_rc_box_alloc0(block_size: gsize) -> gpointer;
+}
+extern "C" {
+    pub fn g_rc_box_dup(block_size: gsize, mem_block: gconstpointer) -> gpointer;
+}
+extern "C" {
+    pub fn g_rc_box_acquire(mem_block: gpointer) -> gpointer;
+}
+extern "C" {
+    pub fn g_rc_box_release(mem_block: gpointer);
+}
+extern "C" {
+    pub fn g_rc_box_release_full(mem_block: gpointer, clear_func: GDestroyNotify);
+}
+extern "C" {
+    pub fn g_rc_box_get_size(mem_block: gpointer) -> gsize;
+}
+extern "C" {
+    pub fn g_atomic_rc_box_alloc(block_size: gsize) -> gpointer;
+}
+extern "C" {
+    pub fn g_atomic_rc_box_alloc0(block_size: gsize) -> gpointer;
+}
+extern "C" {
+    pub fn g_atomic_rc_box_dup(block_size: gsize, mem_block: gconstpointer) -> gpointer;
+}
+extern "C" {
+    pub fn g_atomic_rc_box_acquire(mem_block: gpointer) -> gpointer;
+}
+extern "C" {
+    pub fn g_atomic_rc_box_release(mem_block: gpointer);
+}
+extern "C" {
+    pub fn g_atomic_rc_box_release_full(mem_block: gpointer, clear_func: GDestroyNotify);
+}
+extern "C" {
+    pub fn g_atomic_rc_box_get_size(mem_block: gpointer) -> gsize;
+}
+extern "C" {
+    pub fn g_ref_count_init(rc: *mut grefcount);
+}
+extern "C" {
+    pub fn g_ref_count_inc(rc: *mut grefcount);
+}
+extern "C" {
+    pub fn g_ref_count_dec(rc: *mut grefcount) -> gboolean;
+}
+extern "C" {
+    pub fn g_ref_count_compare(rc: *mut grefcount, val: gint) -> gboolean;
+}
+extern "C" {
+    pub fn g_atomic_ref_count_init(arc: *mut gatomicrefcount);
+}
+extern "C" {
+    pub fn g_atomic_ref_count_inc(arc: *mut gatomicrefcount);
+}
+extern "C" {
+    pub fn g_atomic_ref_count_dec(arc: *mut gatomicrefcount) -> gboolean;
+}
+extern "C" {
+    pub fn g_atomic_ref_count_compare(arc: *mut gatomicrefcount, val: gint) -> gboolean;
+}
+extern "C" {
+    pub fn g_ref_string_new(str: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn g_ref_string_new_len(
+        str: *const ::std::os::raw::c_char,
+        len: gssize,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn g_ref_string_new_intern(
+        str: *const ::std::os::raw::c_char,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn g_ref_string_acquire(str: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn g_ref_string_release(str: *mut ::std::os::raw::c_char);
+}
+extern "C" {
+    pub fn g_ref_string_length(str: *mut ::std::os::raw::c_char) -> gsize;
+}
+pub type GRefString = ::std::os::raw::c_char;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GRegexError {
@@ -14870,8 +14968,10 @@ pub enum GRegexCompileFlags {
     G_REGEX_BSR_ANYCRLF = 8388608,
     G_REGEX_JAVASCRIPT_COMPAT = 33554432,
 }
-pub const GRegexMatchFlags_G_REGEX_MATCH_PARTIAL_SOFT: GRegexMatchFlags =
-    GRegexMatchFlags::G_REGEX_MATCH_PARTIAL;
+impl GRegexMatchFlags {
+    pub const G_REGEX_MATCH_PARTIAL_SOFT: GRegexMatchFlags =
+        GRegexMatchFlags::G_REGEX_MATCH_PARTIAL;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GRegexMatchFlags {
@@ -14903,8 +15003,11 @@ pub struct _GMatchInfo {
 }
 pub type GMatchInfo = _GMatchInfo;
 pub type GRegexEvalCallback = ::std::option::Option<
-    unsafe extern "C" fn(match_info: *const GMatchInfo, result: *mut GString, user_data: gpointer)
-        -> gboolean,
+    unsafe extern "C" fn(
+        match_info: *const GMatchInfo,
+        result: *mut GString,
+        user_data: gpointer,
+    ) -> gboolean,
 >;
 extern "C" {
     pub fn g_regex_new(
@@ -16351,7 +16454,9 @@ extern "C" {
         n_values: *mut guint,
     ) -> *mut gint64;
 }
-pub const GSpawnError_G_SPAWN_ERROR_2BIG: GSpawnError = GSpawnError::G_SPAWN_ERROR_TOO_BIG;
+impl GSpawnError {
+    pub const G_SPAWN_ERROR_2BIG: GSpawnError = GSpawnError::G_SPAWN_ERROR_TOO_BIG;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GSpawnError {
@@ -16425,6 +16530,21 @@ extern "C" {
     ) -> gboolean;
 }
 extern "C" {
+    pub fn g_spawn_async_with_fds(
+        working_directory: *const gchar,
+        argv: *mut *mut gchar,
+        envp: *mut *mut gchar,
+        flags: GSpawnFlags,
+        child_setup: GSpawnChildSetupFunc,
+        user_data: gpointer,
+        child_pid: *mut GPid,
+        stdin_fd: gint,
+        stdout_fd: gint,
+        stderr_fd: gint,
+        error: *mut *mut GError,
+    ) -> gboolean;
+}
+extern "C" {
     pub fn g_spawn_sync(
         working_directory: *const gchar,
         argv: *mut *mut gchar,
@@ -16476,7 +16596,7 @@ pub enum GAsciiType {
 }
 extern "C" {
     #[link_name = "\u{1}g_ascii_table"]
-    pub static mut g_ascii_table: *const guint16;
+    pub static g_ascii_table: *const guint16;
 }
 extern "C" {
     pub fn g_ascii_tolower(c: gchar) -> gchar;
@@ -16678,6 +16798,9 @@ extern "C" {
 extern "C" {
     pub fn g_strv_contains(strv: *const *const gchar, str: *const gchar) -> gboolean;
 }
+extern "C" {
+    pub fn g_strv_equal(strv1: *const *const gchar, strv2: *const *const gchar) -> gboolean;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GNumberParserError {
@@ -16742,14 +16865,14 @@ extern "C" {
     pub fn memcpy(
         __dest: *mut ::std::os::raw::c_void,
         __src: *const ::std::os::raw::c_void,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn memmove(
         __dest: *mut ::std::os::raw::c_void,
         __src: *const ::std::os::raw::c_void,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -16764,21 +16887,21 @@ extern "C" {
     pub fn memset(
         __s: *mut ::std::os::raw::c_void,
         __c: ::std::os::raw::c_int,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn memcmp(
         __s1: *const ::std::os::raw::c_void,
         __s2: *const ::std::os::raw::c_void,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn memchr(
         __s: *const ::std::os::raw::c_void,
         __c: ::std::os::raw::c_int,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -16791,7 +16914,7 @@ extern "C" {
     pub fn strncpy(
         __dest: *mut ::std::os::raw::c_char,
         __src: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
@@ -16804,7 +16927,7 @@ extern "C" {
     pub fn strncat(
         __dest: *mut ::std::os::raw::c_char,
         __src: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
@@ -16817,7 +16940,7 @@ extern "C" {
     pub fn strncmp(
         __s1: *const ::std::os::raw::c_char,
         __s2: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -16830,7 +16953,7 @@ extern "C" {
     pub fn strxfrm(
         __dest: *mut ::std::os::raw::c_char,
         __src: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> ::std::os::raw::c_ulong;
 }
 extern "C" {
@@ -16854,7 +16977,7 @@ extern "C" {
 extern "C" {
     pub fn strndup(
         __string: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
@@ -16951,7 +17074,7 @@ extern "C" {
     );
 }
 extern "C" {
-    pub fn bzero(__s: *mut ::std::os::raw::c_void, __n: usize);
+    pub fn bzero(__s: *mut ::std::os::raw::c_void, __n: ::std::os::raw::c_ulong);
 }
 extern "C" {
     pub fn index(
@@ -16969,6 +17092,12 @@ extern "C" {
     pub fn ffs(__i: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
 }
 extern "C" {
+    pub fn ffsl(__l: ::std::os::raw::c_long) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn ffsll(__ll: ::std::os::raw::c_longlong) -> ::std::os::raw::c_int;
+}
+extern "C" {
     pub fn strcasecmp(
         __s1: *const ::std::os::raw::c_char,
         __s2: *const ::std::os::raw::c_char,
@@ -16978,7 +17107,7 @@ extern "C" {
     pub fn strncasecmp(
         __s1: *const ::std::os::raw::c_char,
         __s2: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -17031,7 +17160,7 @@ extern "C" {
     pub fn stpncpy(
         __dest: *mut ::std::os::raw::c_char,
         __src: *const ::std::os::raw::c_char,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_char;
 }
 #[repr(C)]
@@ -17252,9 +17381,9 @@ extern "C" {
         line: ::std::os::raw::c_int,
         func: *const ::std::os::raw::c_char,
         expr: *const ::std::os::raw::c_char,
-        arg1: f64,
+        arg1: u128,
         cmp: *const ::std::os::raw::c_char,
-        arg2: f64,
+        arg2: u128,
         numtype: ::std::os::raw::c_char,
     );
 }
@@ -17365,7 +17494,7 @@ fn bindgen_test_layout_GTestConfig() {
 }
 extern "C" {
     #[link_name = "\u{1}g_test_config_vars"]
-    pub static mut g_test_config_vars: *const GTestConfig;
+    pub static g_test_config_vars: *const GTestConfig;
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -17398,7 +17527,7 @@ pub struct GTestLogMsg {
     pub n_strings: guint,
     pub strings: *mut *mut gchar,
     pub n_nums: guint,
-    pub nums: *mut f64,
+    pub nums: *mut u128,
 }
 #[test]
 fn bindgen_test_layout_GTestLogMsg() {
@@ -17880,23 +18009,23 @@ extern "C" {
 }
 extern "C" {
     #[link_name = "\u{1}glib_major_version"]
-    pub static mut glib_major_version: guint;
+    pub static glib_major_version: guint;
 }
 extern "C" {
     #[link_name = "\u{1}glib_minor_version"]
-    pub static mut glib_minor_version: guint;
+    pub static glib_minor_version: guint;
 }
 extern "C" {
     #[link_name = "\u{1}glib_micro_version"]
-    pub static mut glib_micro_version: guint;
+    pub static glib_micro_version: guint;
 }
 extern "C" {
     #[link_name = "\u{1}glib_interface_age"]
-    pub static mut glib_interface_age: guint;
+    pub static glib_interface_age: guint;
 }
 extern "C" {
     #[link_name = "\u{1}glib_binary_age"]
-    pub static mut glib_binary_age: guint;
+    pub static glib_binary_age: guint;
 }
 extern "C" {
     pub fn glib_check_version(
@@ -18282,8 +18411,11 @@ pub struct _GThreadFunctions {
     pub cond_wait:
         ::std::option::Option<unsafe extern "C" fn(cond: *mut GCond, mutex: *mut GMutex)>,
     pub cond_timed_wait: ::std::option::Option<
-        unsafe extern "C" fn(cond: *mut GCond, mutex: *mut GMutex, end_time: *mut GTimeVal)
-            -> gboolean,
+        unsafe extern "C" fn(
+            cond: *mut GCond,
+            mutex: *mut GMutex,
+            end_time: *mut GTimeVal,
+        ) -> gboolean,
     >,
     pub cond_free: ::std::option::Option<unsafe extern "C" fn(cond: *mut GCond)>,
     pub private_new:
@@ -19992,6 +20124,9 @@ pub type GThread_slistautoptr = *mut GSList;
 pub type GMutexLocker_autoptr = *mut GMutexLocker;
 pub type GMutexLocker_listautoptr = *mut GList;
 pub type GMutexLocker_slistautoptr = *mut GSList;
+pub type GRecMutexLocker_autoptr = *mut GRecMutexLocker;
+pub type GRecMutexLocker_listautoptr = *mut GList;
+pub type GRecMutexLocker_slistautoptr = *mut GSList;
 pub type GTimer_autoptr = *mut GTimer;
 pub type GTimer_listautoptr = *mut GList;
 pub type GTimer_slistautoptr = *mut GSList;
@@ -20016,8 +20151,9 @@ pub type GVariantDict_slistautoptr = *mut GSList;
 pub type GVariantType_autoptr = *mut GVariantType;
 pub type GVariantType_listautoptr = *mut GList;
 pub type GVariantType_slistautoptr = *mut GSList;
-pub type __FILE = _IO_FILE;
-pub type FILE = _IO_FILE;
+pub type GRefString_autoptr = *mut GRefString;
+pub type GRefString_listautoptr = *mut GList;
+pub type GRefString_slistautoptr = *mut GSList;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct __mbstate_t {
@@ -20138,6 +20274,7 @@ fn bindgen_test_layout__G_fpos_t() {
         )
     );
 }
+pub type __fpos_t = _G_fpos_t;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _G_fpos64_t {
@@ -20177,70 +20314,25 @@ fn bindgen_test_layout__G_fpos64_t() {
         )
     );
 }
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct _IO_jump_t {
-    _unused: [u8; 0],
-}
-pub type _IO_lock_t = ::std::os::raw::c_void;
+pub type __fpos64_t = _G_fpos64_t;
+pub type __FILE = _IO_FILE;
+pub type FILE = _IO_FILE;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _IO_marker {
-    pub _next: *mut _IO_marker,
-    pub _sbuf: *mut _IO_FILE,
-    pub _pos: ::std::os::raw::c_int,
+    _unused: [u8; 0],
 }
-#[test]
-fn bindgen_test_layout__IO_marker() {
-    assert_eq!(
-        ::std::mem::size_of::<_IO_marker>(),
-        24usize,
-        concat!("Size of: ", stringify!(_IO_marker))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<_IO_marker>(),
-        8usize,
-        concat!("Alignment of ", stringify!(_IO_marker))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_marker>()))._next as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_IO_marker),
-            "::",
-            stringify!(_next)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_marker>()))._sbuf as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_IO_marker),
-            "::",
-            stringify!(_sbuf)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_marker>()))._pos as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_IO_marker),
-            "::",
-            stringify!(_pos)
-        )
-    );
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _IO_codecvt {
+    _unused: [u8; 0],
 }
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum __codecvt_result {
-    __codecvt_ok = 0,
-    __codecvt_partial = 1,
-    __codecvt_error = 2,
-    __codecvt_noconv = 3,
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _IO_wide_data {
+    _unused: [u8; 0],
 }
+pub type _IO_lock_t = ::std::os::raw::c_void;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _IO_FILE {
@@ -20266,10 +20358,10 @@ pub struct _IO_FILE {
     pub _shortbuf: [::std::os::raw::c_char; 1usize],
     pub _lock: *mut _IO_lock_t,
     pub _offset: __off64_t,
-    pub __pad1: *mut ::std::os::raw::c_void,
-    pub __pad2: *mut ::std::os::raw::c_void,
-    pub __pad3: *mut ::std::os::raw::c_void,
-    pub __pad4: *mut ::std::os::raw::c_void,
+    pub _codecvt: *mut _IO_codecvt,
+    pub _wide_data: *mut _IO_wide_data,
+    pub _freeres_list: *mut _IO_FILE,
+    pub _freeres_buf: *mut ::std::os::raw::c_void,
     pub __pad5: usize,
     pub _mode: ::std::os::raw::c_int,
     pub _unused2: [::std::os::raw::c_char; 20usize],
@@ -20507,43 +20599,43 @@ fn bindgen_test_layout__IO_FILE() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_FILE>())).__pad1 as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<_IO_FILE>()))._codecvt as *const _ as usize },
         152usize,
         concat!(
             "Offset of field: ",
             stringify!(_IO_FILE),
             "::",
-            stringify!(__pad1)
+            stringify!(_codecvt)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_FILE>())).__pad2 as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<_IO_FILE>()))._wide_data as *const _ as usize },
         160usize,
         concat!(
             "Offset of field: ",
             stringify!(_IO_FILE),
             "::",
-            stringify!(__pad2)
+            stringify!(_wide_data)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_FILE>())).__pad3 as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<_IO_FILE>()))._freeres_list as *const _ as usize },
         168usize,
         concat!(
             "Offset of field: ",
             stringify!(_IO_FILE),
             "::",
-            stringify!(__pad3)
+            stringify!(_freeres_list)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_IO_FILE>())).__pad4 as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<_IO_FILE>()))._freeres_buf as *const _ as usize },
         176usize,
         concat!(
             "Offset of field: ",
             stringify!(_IO_FILE),
             "::",
-            stringify!(__pad4)
+            stringify!(_freeres_buf)
         )
     );
     assert_eq!(
@@ -20577,132 +20669,18 @@ fn bindgen_test_layout__IO_FILE() {
         )
     );
 }
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct _IO_FILE_plus {
-    _unused: [u8; 0],
-}
-extern "C" {
-    #[link_name = "\u{1}_IO_2_1_stdin_"]
-    pub static mut _IO_2_1_stdin_: _IO_FILE_plus;
-}
-extern "C" {
-    #[link_name = "\u{1}_IO_2_1_stdout_"]
-    pub static mut _IO_2_1_stdout_: _IO_FILE_plus;
-}
-extern "C" {
-    #[link_name = "\u{1}_IO_2_1_stderr_"]
-    pub static mut _IO_2_1_stderr_: _IO_FILE_plus;
-}
-pub type __io_read_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        __cookie: *mut ::std::os::raw::c_void,
-        __buf: *mut ::std::os::raw::c_char,
-        __nbytes: usize,
-    ) -> __ssize_t,
->;
-pub type __io_write_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        __cookie: *mut ::std::os::raw::c_void,
-        __buf: *const ::std::os::raw::c_char,
-        __n: usize,
-    ) -> __ssize_t,
->;
-pub type __io_seek_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        __cookie: *mut ::std::os::raw::c_void,
-        __pos: *mut __off64_t,
-        __w: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int,
->;
-pub type __io_close_fn = ::std::option::Option<
-    unsafe extern "C" fn(__cookie: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int,
->;
-extern "C" {
-    pub fn __underflow(arg1: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn __uflow(arg1: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn __overflow(arg1: *mut _IO_FILE, arg2: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_getc(__fp: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_putc(__c: ::std::os::raw::c_int, __fp: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_feof(__fp: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_ferror(__fp: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_peekc_locked(__fp: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_flockfile(arg1: *mut _IO_FILE);
-}
-extern "C" {
-    pub fn _IO_funlockfile(arg1: *mut _IO_FILE);
-}
-extern "C" {
-    pub fn _IO_ftrylockfile(arg1: *mut _IO_FILE) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_vfscanf(
-        arg1: *mut _IO_FILE,
-        arg2: *const ::std::os::raw::c_char,
-        arg3: *mut __va_list_tag,
-        arg4: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_vfprintf(
-        arg1: *mut _IO_FILE,
-        arg2: *const ::std::os::raw::c_char,
-        arg3: *mut __va_list_tag,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn _IO_padn(arg1: *mut _IO_FILE, arg2: ::std::os::raw::c_int, arg3: __ssize_t)
-        -> __ssize_t;
-}
-extern "C" {
-    pub fn _IO_sgetn(arg1: *mut _IO_FILE, arg2: *mut ::std::os::raw::c_void, arg3: usize) -> usize;
-}
-extern "C" {
-    pub fn _IO_seekoff(
-        arg1: *mut _IO_FILE,
-        arg2: __off64_t,
-        arg3: ::std::os::raw::c_int,
-        arg4: ::std::os::raw::c_int,
-    ) -> __off64_t;
-}
-extern "C" {
-    pub fn _IO_seekpos(
-        arg1: *mut _IO_FILE,
-        arg2: __off64_t,
-        arg3: ::std::os::raw::c_int,
-    ) -> __off64_t;
-}
-extern "C" {
-    pub fn _IO_free_backup_area(arg1: *mut _IO_FILE);
-}
-pub type fpos_t = _G_fpos_t;
+pub type fpos_t = __fpos_t;
 extern "C" {
     #[link_name = "\u{1}stdin"]
-    pub static mut stdin: *mut _IO_FILE;
+    pub static mut stdin: *mut FILE;
 }
 extern "C" {
     #[link_name = "\u{1}stdout"]
-    pub static mut stdout: *mut _IO_FILE;
+    pub static mut stdout: *mut FILE;
 }
 extern "C" {
     #[link_name = "\u{1}stderr"]
-    pub static mut stderr: *mut _IO_FILE;
+    pub static mut stderr: *mut FILE;
 }
 extern "C" {
     pub fn remove(__filename: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
@@ -20832,7 +20810,7 @@ extern "C" {
 extern "C" {
     pub fn snprintf(
         __s: *mut ::std::os::raw::c_char,
-        __maxlen: usize,
+        __maxlen: ::std::os::raw::c_ulong,
         __format: *const ::std::os::raw::c_char,
         ...
     ) -> ::std::os::raw::c_int;
@@ -20840,7 +20818,7 @@ extern "C" {
 extern "C" {
     pub fn vsnprintf(
         __s: *mut ::std::os::raw::c_char,
-        __maxlen: usize,
+        __maxlen: ::std::os::raw::c_ulong,
         __format: *const ::std::os::raw::c_char,
         __arg: *mut __va_list_tag,
     ) -> ::std::os::raw::c_int;
@@ -21024,18 +21002,18 @@ extern "C" {
 extern "C" {
     pub fn fread(
         __ptr: *mut ::std::os::raw::c_void,
-        __size: usize,
-        __n: usize,
+        __size: ::std::os::raw::c_ulong,
+        __n: ::std::os::raw::c_ulong,
         __stream: *mut FILE,
-    ) -> usize;
+    ) -> ::std::os::raw::c_ulong;
 }
 extern "C" {
     pub fn fwrite(
         __ptr: *const ::std::os::raw::c_void,
-        __size: usize,
-        __n: usize,
+        __size: ::std::os::raw::c_ulong,
+        __n: ::std::os::raw::c_ulong,
         __s: *mut FILE,
-    ) -> usize;
+    ) -> ::std::os::raw::c_ulong;
 }
 extern "C" {
     pub fn fread_unlocked(
@@ -21137,6 +21115,12 @@ extern "C" {
 }
 extern "C" {
     pub fn funlockfile(__stream: *mut FILE);
+}
+extern "C" {
+    pub fn __uflow(arg1: *mut FILE) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn __overflow(arg1: *mut FILE, arg2: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn g_printf(format: *const gchar, ...) -> gint;
@@ -22532,7 +22516,9 @@ extern "C" {
         transform_func: GValueTransform,
     );
 }
-pub const GParamFlags_G_PARAM_PRIVATE: GParamFlags = GParamFlags::G_PARAM_STATIC_NAME;
+impl GParamFlags {
+    pub const G_PARAM_PRIVATE: GParamFlags = GParamFlags::G_PARAM_STATIC_NAME;
+}
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GParamFlags {
@@ -22696,8 +22682,11 @@ pub struct _GParamSpecClass {
         unsafe extern "C" fn(pspec: *mut GParamSpec, value: *mut GValue) -> gboolean,
     >,
     pub values_cmp: ::std::option::Option<
-        unsafe extern "C" fn(pspec: *mut GParamSpec, value1: *const GValue, value2: *const GValue)
-            -> gint,
+        unsafe extern "C" fn(
+            pspec: *mut GParamSpec,
+            value1: *const GValue,
+            value2: *const GValue,
+        ) -> gint,
     >,
     pub dummy: [gpointer; 4usize],
 }
@@ -22926,8 +22915,11 @@ pub struct _GParamSpecTypeInfo {
         unsafe extern "C" fn(pspec: *mut GParamSpec, value: *mut GValue) -> gboolean,
     >,
     pub values_cmp: ::std::option::Option<
-        unsafe extern "C" fn(pspec: *mut GParamSpec, value1: *const GValue, value2: *const GValue)
-            -> gint,
+        unsafe extern "C" fn(
+            pspec: *mut GParamSpec,
+            value1: *const GValue,
+            value2: *const GValue,
+        ) -> gint,
     >,
 }
 #[test]
@@ -27716,19 +27708,45 @@ extern "C" {
     pub fn g_value_set_string_take_ownership(value: *mut GValue, v_string: *mut gchar);
 }
 pub type gchararray = *mut gchar;
+extern "C" {
+    pub fn g_unicode_type_get_type() -> GType;
+}
+extern "C" {
+    pub fn g_unicode_break_type_get_type() -> GType;
+}
+extern "C" {
+    pub fn g_unicode_script_get_type() -> GType;
+}
+extern "C" {
+    pub fn g_normalize_mode_get_type() -> GType;
+}
 pub type GClosure_autoptr = *mut GClosure;
 pub type GClosure_listautoptr = *mut GList;
 pub type GClosure_slistautoptr = *mut GSList;
+pub type GEnumClass_autoptr = *mut GEnumClass;
+pub type GEnumClass_listautoptr = *mut GList;
+pub type GEnumClass_slistautoptr = *mut GSList;
+pub type GFlagsClass_autoptr = *mut GFlagsClass;
+pub type GFlagsClass_listautoptr = *mut GList;
+pub type GFlagsClass_slistautoptr = *mut GSList;
 pub type GObject_autoptr = *mut GObject;
 pub type GObject_listautoptr = *mut GList;
 pub type GObject_slistautoptr = *mut GSList;
 pub type GInitiallyUnowned_autoptr = *mut GInitiallyUnowned;
 pub type GInitiallyUnowned_listautoptr = *mut GList;
 pub type GInitiallyUnowned_slistautoptr = *mut GSList;
+pub type GParamSpec_autoptr = *mut GParamSpec;
+pub type GParamSpec_listautoptr = *mut GList;
+pub type GParamSpec_slistautoptr = *mut GSList;
+pub type GTypeClass_autoptr = *mut GTypeClass;
+pub type GTypeClass_listautoptr = *mut GList;
+pub type GTypeClass_slistautoptr = *mut GSList;
 pub type VipsPel = ::std::os::raw::c_uchar;
 pub type VipsCallbackFn = ::std::option::Option<
-    unsafe extern "C" fn(a: *mut ::std::os::raw::c_void, b: *mut ::std::os::raw::c_void)
-        -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(
+        a: *mut ::std::os::raw::c_void,
+        b: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int,
 >;
 pub type VipsSListMap2Fn = ::std::option::Option<
     unsafe extern "C" fn(
@@ -28402,10 +28420,10 @@ extern "C" {
     pub fn __nextafter(__x: f64, __y: f64) -> f64;
 }
 extern "C" {
-    pub fn nexttoward(__x: f64, __y: f64) -> f64;
+    pub fn nexttoward(__x: f64, __y: u128) -> f64;
 }
 extern "C" {
-    pub fn __nexttoward(__x: f64, __y: f64) -> f64;
+    pub fn __nexttoward(__x: f64, __y: u128) -> f64;
 }
 extern "C" {
     pub fn remainder(__x: f64, __y: f64) -> f64;
@@ -28840,10 +28858,10 @@ extern "C" {
     pub fn __nextafterf(__x: f32, __y: f32) -> f32;
 }
 extern "C" {
-    pub fn nexttowardf(__x: f32, __y: f64) -> f32;
+    pub fn nexttowardf(__x: f32, __y: u128) -> f32;
 }
 extern "C" {
-    pub fn __nexttowardf(__x: f32, __y: f64) -> f32;
+    pub fn __nexttowardf(__x: f32, __y: u128) -> f32;
 }
 extern "C" {
     pub fn remainderf(__x: f32, __y: f32) -> f32;
@@ -28948,442 +28966,442 @@ extern "C" {
     pub fn __scalbf(__x: f32, __n: f32) -> f32;
 }
 extern "C" {
-    pub fn __fpclassifyl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __fpclassifyl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __signbitl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __signbitl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __isinfl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __isinfl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __finitel(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __finitel(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __isnanl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __isnanl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __iseqsigl(__x: f64, __y: f64) -> ::std::os::raw::c_int;
+    pub fn __iseqsigl(__x: u128, __y: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __issignalingl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn __issignalingl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn acosl(__x: f64) -> f64;
+    pub fn acosl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __acosl(__x: f64) -> f64;
+    pub fn __acosl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn asinl(__x: f64) -> f64;
+    pub fn asinl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __asinl(__x: f64) -> f64;
+    pub fn __asinl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn atanl(__x: f64) -> f64;
+    pub fn atanl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __atanl(__x: f64) -> f64;
+    pub fn __atanl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn atan2l(__y: f64, __x: f64) -> f64;
+    pub fn atan2l(__y: u128, __x: u128) -> u128;
 }
 extern "C" {
-    pub fn __atan2l(__y: f64, __x: f64) -> f64;
+    pub fn __atan2l(__y: u128, __x: u128) -> u128;
 }
 extern "C" {
-    pub fn cosl(__x: f64) -> f64;
+    pub fn cosl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __cosl(__x: f64) -> f64;
+    pub fn __cosl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn sinl(__x: f64) -> f64;
+    pub fn sinl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __sinl(__x: f64) -> f64;
+    pub fn __sinl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn tanl(__x: f64) -> f64;
+    pub fn tanl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __tanl(__x: f64) -> f64;
+    pub fn __tanl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn coshl(__x: f64) -> f64;
+    pub fn coshl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __coshl(__x: f64) -> f64;
+    pub fn __coshl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn sinhl(__x: f64) -> f64;
+    pub fn sinhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __sinhl(__x: f64) -> f64;
+    pub fn __sinhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn tanhl(__x: f64) -> f64;
+    pub fn tanhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __tanhl(__x: f64) -> f64;
+    pub fn __tanhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn acoshl(__x: f64) -> f64;
+    pub fn acoshl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __acoshl(__x: f64) -> f64;
+    pub fn __acoshl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn asinhl(__x: f64) -> f64;
+    pub fn asinhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __asinhl(__x: f64) -> f64;
+    pub fn __asinhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn atanhl(__x: f64) -> f64;
+    pub fn atanhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __atanhl(__x: f64) -> f64;
+    pub fn __atanhl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn expl(__x: f64) -> f64;
+    pub fn expl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __expl(__x: f64) -> f64;
+    pub fn __expl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn frexpl(__x: f64, __exponent: *mut ::std::os::raw::c_int) -> f64;
+    pub fn frexpl(__x: u128, __exponent: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn __frexpl(__x: f64, __exponent: *mut ::std::os::raw::c_int) -> f64;
+    pub fn __frexpl(__x: u128, __exponent: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn ldexpl(__x: f64, __exponent: ::std::os::raw::c_int) -> f64;
+    pub fn ldexpl(__x: u128, __exponent: ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn __ldexpl(__x: f64, __exponent: ::std::os::raw::c_int) -> f64;
+    pub fn __ldexpl(__x: u128, __exponent: ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn logl(__x: f64) -> f64;
+    pub fn logl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __logl(__x: f64) -> f64;
+    pub fn __logl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn log10l(__x: f64) -> f64;
+    pub fn log10l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __log10l(__x: f64) -> f64;
+    pub fn __log10l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn modfl(__x: f64, __iptr: *mut f64) -> f64;
+    pub fn modfl(__x: u128, __iptr: *mut u128) -> u128;
 }
 extern "C" {
-    pub fn __modfl(__x: f64, __iptr: *mut f64) -> f64;
+    pub fn __modfl(__x: u128, __iptr: *mut u128) -> u128;
 }
 extern "C" {
-    pub fn expm1l(__x: f64) -> f64;
+    pub fn expm1l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __expm1l(__x: f64) -> f64;
+    pub fn __expm1l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn log1pl(__x: f64) -> f64;
+    pub fn log1pl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __log1pl(__x: f64) -> f64;
+    pub fn __log1pl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn logbl(__x: f64) -> f64;
+    pub fn logbl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __logbl(__x: f64) -> f64;
+    pub fn __logbl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn exp2l(__x: f64) -> f64;
+    pub fn exp2l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __exp2l(__x: f64) -> f64;
+    pub fn __exp2l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn log2l(__x: f64) -> f64;
+    pub fn log2l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __log2l(__x: f64) -> f64;
+    pub fn __log2l(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn powl(__x: f64, __y: f64) -> f64;
+    pub fn powl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __powl(__x: f64, __y: f64) -> f64;
+    pub fn __powl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn sqrtl(__x: f64) -> f64;
+    pub fn sqrtl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __sqrtl(__x: f64) -> f64;
+    pub fn __sqrtl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn hypotl(__x: f64, __y: f64) -> f64;
+    pub fn hypotl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __hypotl(__x: f64, __y: f64) -> f64;
+    pub fn __hypotl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn cbrtl(__x: f64) -> f64;
+    pub fn cbrtl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __cbrtl(__x: f64) -> f64;
+    pub fn __cbrtl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn ceill(__x: f64) -> f64;
+    pub fn ceill(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __ceill(__x: f64) -> f64;
+    pub fn __ceill(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn fabsl(__x: f64) -> f64;
+    pub fn fabsl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __fabsl(__x: f64) -> f64;
+    pub fn __fabsl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn floorl(__x: f64) -> f64;
+    pub fn floorl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __floorl(__x: f64) -> f64;
+    pub fn __floorl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn fmodl(__x: f64, __y: f64) -> f64;
+    pub fn fmodl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __fmodl(__x: f64, __y: f64) -> f64;
+    pub fn __fmodl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn isinfl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn isinfl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn finitel(__value: f64) -> ::std::os::raw::c_int;
+    pub fn finitel(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn dreml(__x: f64, __y: f64) -> f64;
+    pub fn dreml(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __dreml(__x: f64, __y: f64) -> f64;
+    pub fn __dreml(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn significandl(__x: f64) -> f64;
+    pub fn significandl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __significandl(__x: f64) -> f64;
+    pub fn __significandl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn copysignl(__x: f64, __y: f64) -> f64;
+    pub fn copysignl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __copysignl(__x: f64, __y: f64) -> f64;
+    pub fn __copysignl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn nanl(__tagb: *const ::std::os::raw::c_char) -> f64;
+    pub fn nanl(__tagb: *const ::std::os::raw::c_char) -> u128;
 }
 extern "C" {
-    pub fn __nanl(__tagb: *const ::std::os::raw::c_char) -> f64;
+    pub fn __nanl(__tagb: *const ::std::os::raw::c_char) -> u128;
 }
 extern "C" {
-    pub fn isnanl(__value: f64) -> ::std::os::raw::c_int;
+    pub fn isnanl(__value: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn j0l(arg1: f64) -> f64;
+    pub fn j0l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __j0l(arg1: f64) -> f64;
+    pub fn __j0l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn j1l(arg1: f64) -> f64;
+    pub fn j1l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __j1l(arg1: f64) -> f64;
+    pub fn __j1l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn jnl(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+    pub fn jnl(arg1: ::std::os::raw::c_int, arg2: u128) -> u128;
 }
 extern "C" {
-    pub fn __jnl(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+    pub fn __jnl(arg1: ::std::os::raw::c_int, arg2: u128) -> u128;
 }
 extern "C" {
-    pub fn y0l(arg1: f64) -> f64;
+    pub fn y0l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __y0l(arg1: f64) -> f64;
+    pub fn __y0l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn y1l(arg1: f64) -> f64;
+    pub fn y1l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __y1l(arg1: f64) -> f64;
+    pub fn __y1l(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn ynl(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+    pub fn ynl(arg1: ::std::os::raw::c_int, arg2: u128) -> u128;
 }
 extern "C" {
-    pub fn __ynl(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+    pub fn __ynl(arg1: ::std::os::raw::c_int, arg2: u128) -> u128;
 }
 extern "C" {
-    pub fn erfl(arg1: f64) -> f64;
+    pub fn erfl(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __erfl(arg1: f64) -> f64;
+    pub fn __erfl(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn erfcl(arg1: f64) -> f64;
+    pub fn erfcl(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __erfcl(arg1: f64) -> f64;
+    pub fn __erfcl(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn lgammal(arg1: f64) -> f64;
+    pub fn lgammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __lgammal(arg1: f64) -> f64;
+    pub fn __lgammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn tgammal(arg1: f64) -> f64;
+    pub fn tgammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __tgammal(arg1: f64) -> f64;
+    pub fn __tgammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn gammal(arg1: f64) -> f64;
+    pub fn gammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn __gammal(arg1: f64) -> f64;
+    pub fn __gammal(arg1: u128) -> u128;
 }
 extern "C" {
-    pub fn lgammal_r(arg1: f64, __signgamp: *mut ::std::os::raw::c_int) -> f64;
+    pub fn lgammal_r(arg1: u128, __signgamp: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn __lgammal_r(arg1: f64, __signgamp: *mut ::std::os::raw::c_int) -> f64;
+    pub fn __lgammal_r(arg1: u128, __signgamp: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn rintl(__x: f64) -> f64;
+    pub fn rintl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __rintl(__x: f64) -> f64;
+    pub fn __rintl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn nextafterl(__x: f64, __y: f64) -> f64;
+    pub fn nextafterl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __nextafterl(__x: f64, __y: f64) -> f64;
+    pub fn __nextafterl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn nexttowardl(__x: f64, __y: f64) -> f64;
+    pub fn nexttowardl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __nexttowardl(__x: f64, __y: f64) -> f64;
+    pub fn __nexttowardl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn remainderl(__x: f64, __y: f64) -> f64;
+    pub fn remainderl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __remainderl(__x: f64, __y: f64) -> f64;
+    pub fn __remainderl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn scalbnl(__x: f64, __n: ::std::os::raw::c_int) -> f64;
+    pub fn scalbnl(__x: u128, __n: ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn __scalbnl(__x: f64, __n: ::std::os::raw::c_int) -> f64;
+    pub fn __scalbnl(__x: u128, __n: ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn ilogbl(__x: f64) -> ::std::os::raw::c_int;
+    pub fn ilogbl(__x: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn __ilogbl(__x: f64) -> ::std::os::raw::c_int;
+    pub fn __ilogbl(__x: u128) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn scalblnl(__x: f64, __n: ::std::os::raw::c_long) -> f64;
+    pub fn scalblnl(__x: u128, __n: ::std::os::raw::c_long) -> u128;
 }
 extern "C" {
-    pub fn __scalblnl(__x: f64, __n: ::std::os::raw::c_long) -> f64;
+    pub fn __scalblnl(__x: u128, __n: ::std::os::raw::c_long) -> u128;
 }
 extern "C" {
-    pub fn nearbyintl(__x: f64) -> f64;
+    pub fn nearbyintl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __nearbyintl(__x: f64) -> f64;
+    pub fn __nearbyintl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn roundl(__x: f64) -> f64;
+    pub fn roundl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __roundl(__x: f64) -> f64;
+    pub fn __roundl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn truncl(__x: f64) -> f64;
+    pub fn truncl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn __truncl(__x: f64) -> f64;
+    pub fn __truncl(__x: u128) -> u128;
 }
 extern "C" {
-    pub fn remquol(__x: f64, __y: f64, __quo: *mut ::std::os::raw::c_int) -> f64;
+    pub fn remquol(__x: u128, __y: u128, __quo: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn __remquol(__x: f64, __y: f64, __quo: *mut ::std::os::raw::c_int) -> f64;
+    pub fn __remquol(__x: u128, __y: u128, __quo: *mut ::std::os::raw::c_int) -> u128;
 }
 extern "C" {
-    pub fn lrintl(__x: f64) -> ::std::os::raw::c_long;
+    pub fn lrintl(__x: u128) -> ::std::os::raw::c_long;
 }
 extern "C" {
-    pub fn __lrintl(__x: f64) -> ::std::os::raw::c_long;
+    pub fn __lrintl(__x: u128) -> ::std::os::raw::c_long;
 }
 extern "C" {
-    pub fn llrintl(__x: f64) -> ::std::os::raw::c_longlong;
+    pub fn llrintl(__x: u128) -> ::std::os::raw::c_longlong;
 }
 extern "C" {
-    pub fn __llrintl(__x: f64) -> ::std::os::raw::c_longlong;
+    pub fn __llrintl(__x: u128) -> ::std::os::raw::c_longlong;
 }
 extern "C" {
-    pub fn lroundl(__x: f64) -> ::std::os::raw::c_long;
+    pub fn lroundl(__x: u128) -> ::std::os::raw::c_long;
 }
 extern "C" {
-    pub fn __lroundl(__x: f64) -> ::std::os::raw::c_long;
+    pub fn __lroundl(__x: u128) -> ::std::os::raw::c_long;
 }
 extern "C" {
-    pub fn llroundl(__x: f64) -> ::std::os::raw::c_longlong;
+    pub fn llroundl(__x: u128) -> ::std::os::raw::c_longlong;
 }
 extern "C" {
-    pub fn __llroundl(__x: f64) -> ::std::os::raw::c_longlong;
+    pub fn __llroundl(__x: u128) -> ::std::os::raw::c_longlong;
 }
 extern "C" {
-    pub fn fdiml(__x: f64, __y: f64) -> f64;
+    pub fn fdiml(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __fdiml(__x: f64, __y: f64) -> f64;
+    pub fn __fdiml(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn fmaxl(__x: f64, __y: f64) -> f64;
+    pub fn fmaxl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __fmaxl(__x: f64, __y: f64) -> f64;
+    pub fn __fmaxl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn fminl(__x: f64, __y: f64) -> f64;
+    pub fn fminl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn __fminl(__x: f64, __y: f64) -> f64;
+    pub fn __fminl(__x: u128, __y: u128) -> u128;
 }
 extern "C" {
-    pub fn fmal(__x: f64, __y: f64, __z: f64) -> f64;
+    pub fn fmal(__x: u128, __y: u128, __z: u128) -> u128;
 }
 extern "C" {
-    pub fn __fmal(__x: f64, __y: f64, __z: f64) -> f64;
+    pub fn __fmal(__x: u128, __y: u128, __z: u128) -> u128;
 }
 extern "C" {
-    pub fn scalbl(__x: f64, __n: f64) -> f64;
+    pub fn scalbl(__x: u128, __n: u128) -> u128;
 }
 extern "C" {
-    pub fn __scalbl(__x: f64, __n: f64) -> f64;
+    pub fn __scalbl(__x: u128, __n: u128) -> u128;
 }
 extern "C" {
     #[link_name = "\u{1}signgam"]
@@ -29402,94 +29420,6 @@ pub enum _bindgen_ty_21 {
     FP_ZERO = 2,
     FP_SUBNORMAL = 3,
     FP_NORMAL = 4,
-}
-#[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _LIB_VERSION_TYPE {
-    _IEEE_ = -1,
-    _SVID_ = 0,
-    _XOPEN_ = 1,
-    _POSIX_ = 2,
-    _ISOC_ = 3,
-}
-extern "C" {
-    #[link_name = "\u{1}_LIB_VERSION"]
-    pub static mut _LIB_VERSION: _LIB_VERSION_TYPE;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct exception {
-    pub type_: ::std::os::raw::c_int,
-    pub name: *mut ::std::os::raw::c_char,
-    pub arg1: f64,
-    pub arg2: f64,
-    pub retval: f64,
-}
-#[test]
-fn bindgen_test_layout_exception() {
-    assert_eq!(
-        ::std::mem::size_of::<exception>(),
-        40usize,
-        concat!("Size of: ", stringify!(exception))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<exception>(),
-        8usize,
-        concat!("Alignment of ", stringify!(exception))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<exception>())).type_ as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(exception),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<exception>())).name as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(exception),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<exception>())).arg1 as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(exception),
-            "::",
-            stringify!(arg1)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<exception>())).arg2 as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(exception),
-            "::",
-            stringify!(arg2)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<exception>())).retval as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(exception),
-            "::",
-            stringify!(retval)
-        )
-    );
-}
-extern "C" {
-    pub fn matherr(__exc: *mut exception) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vips_enum_string(
@@ -29707,8 +29637,8 @@ extern "C" {
     pub fn vips__get_bytes(
         filename: *const ::std::os::raw::c_char,
         buf: *mut ::std::os::raw::c_uchar,
-        len: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
+        len: guint64,
+    ) -> guint64;
 }
 extern "C" {
     pub fn vips__fgetc(fp: *mut FILE) -> ::std::os::raw::c_int;
@@ -29865,10 +29795,6 @@ pub enum VipsArgumentFlags {
     VIPS_ARGUMENT_OUTPUT = 32,
     VIPS_ARGUMENT_DEPRECATED = 64,
     VIPS_ARGUMENT_MODIFY = 128,
-}
-extern "C" {
-    #[link_name = "\u{1}_vips__argument_id"]
-    pub static mut _vips__argument_id: ::std::os::raw::c_int;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -30062,6 +29988,9 @@ fn bindgen_test_layout__VipsArgumentInstance() {
 pub type VipsArgumentInstance = _VipsArgumentInstance;
 pub type VipsArgumentTable = GHashTable;
 extern "C" {
+    pub fn vips_argument_get_id() -> ::std::os::raw::c_int;
+}
+extern "C" {
     pub fn vips__object_set_member(
         object: *mut VipsObject,
         pspec: *mut GParamSpec,
@@ -30086,6 +30015,14 @@ extern "C" {
         a: *mut ::std::os::raw::c_void,
         b: *mut ::std::os::raw::c_void,
     ) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    pub fn vips_object_get_args(
+        object: *mut VipsObject,
+        names: *mut *mut *const ::std::os::raw::c_char,
+        flags: *mut *mut ::std::os::raw::c_int,
+        n_args: *mut ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
 }
 pub type VipsArgumentClassMapFn = ::std::option::Option<
     unsafe extern "C" fn(
@@ -30290,8 +30227,10 @@ pub struct _VipsObjectClass {
         ::std::option::Option<unsafe extern "C" fn(object: *mut VipsObject, buf: *mut VipsBuf)>,
     pub output_needs_arg: gboolean,
     pub output_to_arg: ::std::option::Option<
-        unsafe extern "C" fn(object: *mut VipsObject, string: *const ::std::os::raw::c_char)
-            -> ::std::os::raw::c_int,
+        unsafe extern "C" fn(
+            object: *mut VipsObject,
+            string: *const ::std::os::raw::c_char,
+        ) -> ::std::os::raw::c_int,
     >,
     pub nickname: *const ::std::os::raw::c_char,
     pub description: *const ::std::os::raw::c_char,
@@ -30719,8 +30658,10 @@ extern "C" {
     ) -> *mut ::std::os::raw::c_void;
 }
 pub type VipsTypeMapFn = ::std::option::Option<
-    unsafe extern "C" fn(type_: GType, a: *mut ::std::os::raw::c_void)
-        -> *mut ::std::os::raw::c_void,
+    unsafe extern "C" fn(
+        type_: GType,
+        a: *mut ::std::os::raw::c_void,
+    ) -> *mut ::std::os::raw::c_void,
 >;
 pub type VipsTypeMap2Fn = ::std::option::Option<
     unsafe extern "C" fn(
@@ -30730,8 +30671,10 @@ pub type VipsTypeMap2Fn = ::std::option::Option<
     ) -> *mut ::std::os::raw::c_void,
 >;
 pub type VipsClassMapFn = ::std::option::Option<
-    unsafe extern "C" fn(cls: *mut VipsObjectClass, a: *mut ::std::os::raw::c_void)
-        -> *mut ::std::os::raw::c_void,
+    unsafe extern "C" fn(
+        cls: *mut VipsObjectClass,
+        a: *mut ::std::os::raw::c_void,
+    ) -> *mut ::std::os::raw::c_void,
 >;
 extern "C" {
     pub fn vips_type_map(
@@ -31052,14 +30995,14 @@ extern "C" {
     pub fn vips_blob_new(
         free_fn: VipsCallbackFn,
         data: *const ::std::os::raw::c_void,
-        size: usize,
+        length: usize,
     ) -> *mut VipsBlob;
 }
 extern "C" {
-    pub fn vips_blob_copy(data: *const ::std::os::raw::c_void, size: usize) -> *mut VipsBlob;
+    pub fn vips_blob_copy(data: *const ::std::os::raw::c_void, length: usize) -> *mut VipsBlob;
 }
 extern "C" {
-    pub fn vips_blob_get(blob: *mut VipsBlob, size: *mut usize) -> *const ::std::os::raw::c_void;
+    pub fn vips_blob_get(blob: *mut VipsBlob, length: *mut usize) -> *const ::std::os::raw::c_void;
 }
 extern "C" {
     pub fn vips_blob_get_type() -> GType;
@@ -31231,7 +31174,7 @@ extern "C" {
     pub fn vips_value_set_blob(
         value: *mut GValue,
         free_fn: VipsCallbackFn,
-        data: *mut ::std::os::raw::c_void,
+        data: *const ::std::os::raw::c_void,
         length: usize,
     );
 }
@@ -31397,6 +31340,9 @@ extern "C" {
     pub fn vips_rect_equalsrect(r1: *const VipsRect, r2: *const VipsRect) -> gboolean;
 }
 extern "C" {
+    pub fn vips_rect_overlapsrect(r1: *const VipsRect, r2: *const VipsRect) -> gboolean;
+}
+extern "C" {
     pub fn vips_rect_marginadjust(r: *mut VipsRect, n: ::std::os::raw::c_int);
 }
 extern "C" {
@@ -31504,14 +31450,6 @@ fn bindgen_test_layout_VipsWindow() {
             stringify!(length)
         )
     );
-}
-extern "C" {
-    pub fn vips_window_ref(
-        window: *mut VipsWindow,
-        im: *mut _VipsImage,
-        top: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-    ) -> *mut VipsWindow;
 }
 extern "C" {
     pub fn vips_window_unref(window: *mut VipsWindow) -> ::std::os::raw::c_int;
@@ -31788,8 +31726,10 @@ extern "C" {
     pub fn vips__region_no_ownership(reg: *mut _VipsRegion);
 }
 pub type VipsRegionFillFn = ::std::option::Option<
-    unsafe extern "C" fn(arg1: *mut _VipsRegion, arg2: *mut ::std::os::raw::c_void)
-        -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(
+        arg1: *mut _VipsRegion,
+        arg2: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int,
 >;
 extern "C" {
     pub fn vips_region_fill(
@@ -31853,6 +31793,10 @@ extern "C" {
 }
 extern "C" {
     pub fn vips__view_image(image: *mut _VipsImage) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[link_name = "\u{1}_vips__argument_id"]
+    pub static mut _vips__argument_id: ::std::os::raw::c_int;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -33704,16 +33648,22 @@ pub struct _VipsFormatClass {
         unsafe extern "C" fn(arg1: *const ::std::os::raw::c_char) -> gboolean,
     >,
     pub header: ::std::option::Option<
-        unsafe extern "C" fn(arg1: *const ::std::os::raw::c_char, arg2: *mut VipsImage)
-            -> ::std::os::raw::c_int,
+        unsafe extern "C" fn(
+            arg1: *const ::std::os::raw::c_char,
+            arg2: *mut VipsImage,
+        ) -> ::std::os::raw::c_int,
     >,
     pub load: ::std::option::Option<
-        unsafe extern "C" fn(arg1: *const ::std::os::raw::c_char, arg2: *mut VipsImage)
-            -> ::std::os::raw::c_int,
+        unsafe extern "C" fn(
+            arg1: *const ::std::os::raw::c_char,
+            arg2: *mut VipsImage,
+        ) -> ::std::os::raw::c_int,
     >,
     pub save: ::std::option::Option<
-        unsafe extern "C" fn(arg1: *mut VipsImage, arg2: *const ::std::os::raw::c_char)
-            -> ::std::os::raw::c_int,
+        unsafe extern "C" fn(
+            arg1: *mut VipsImage,
+            arg2: *const ::std::os::raw::c_char,
+        ) -> ::std::os::raw::c_int,
     >,
     pub get_flags: ::std::option::Option<
         unsafe extern "C" fn(arg1: *const ::std::os::raw::c_char) -> VipsFormatFlags,
@@ -34038,6 +33988,14 @@ extern "C" {
         filename: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
 }
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum VipsRegionShrink {
+    VIPS_REGION_SHRINK_MEAN = 0,
+    VIPS_REGION_SHRINK_MEDIAN = 1,
+    VIPS_REGION_SHRINK_MODE = 2,
+    VIPS_REGION_SHRINK_LAST = 3,
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _VipsRegion {
@@ -34261,6 +34219,14 @@ extern "C" {
         x: ::std::os::raw::c_int,
         y: ::std::os::raw::c_int,
     );
+}
+extern "C" {
+    pub fn vips_region_shrink_method(
+        from: *mut VipsRegion,
+        to: *mut VipsRegion,
+        target: *const VipsRect,
+        method: VipsRegionShrink,
+    ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn vips_region_shrink(
@@ -34845,8 +34811,10 @@ extern "C" {
     ) -> *mut VipsThreadState;
 }
 pub type VipsThreadStartFn = ::std::option::Option<
-    unsafe extern "C" fn(im: *mut VipsImage, a: *mut ::std::os::raw::c_void)
-        -> *mut VipsThreadState,
+    unsafe extern "C" fn(
+        im: *mut VipsImage,
+        a: *mut ::std::os::raw::c_void,
+    ) -> *mut VipsThreadState,
 >;
 pub type VipsThreadpoolAllocateFn = ::std::option::Option<
     unsafe extern "C" fn(
@@ -34856,8 +34824,10 @@ pub type VipsThreadpoolAllocateFn = ::std::option::Option<
     ) -> ::std::os::raw::c_int,
 >;
 pub type VipsThreadpoolWorkFn = ::std::option::Option<
-    unsafe extern "C" fn(state: *mut VipsThreadState, a: *mut ::std::os::raw::c_void)
-        -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(
+        state: *mut VipsThreadState,
+        a: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int,
 >;
 pub type VipsThreadpoolProgressFn = ::std::option::Option<
     unsafe extern "C" fn(a: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int,
@@ -35021,7 +34991,15 @@ extern "C" {
         image: *mut VipsImage,
         name: *const ::std::os::raw::c_char,
         free_fn: VipsCallbackFn,
-        data: *mut ::std::os::raw::c_void,
+        data: *const ::std::os::raw::c_void,
+        length: usize,
+    );
+}
+extern "C" {
+    pub fn vips_image_set_blob_copy(
+        image: *mut VipsImage,
+        name: *const ::std::os::raw::c_char,
+        data: *const ::std::os::raw::c_void,
         length: usize,
     );
 }
@@ -35029,7 +35007,7 @@ extern "C" {
     pub fn vips_image_get_blob(
         image: *const VipsImage,
         name: *const ::std::os::raw::c_char,
-        data: *mut *mut ::std::os::raw::c_void,
+        data: *mut *const ::std::os::raw::c_void,
         length: *mut usize,
     ) -> ::std::os::raw::c_int;
 }
@@ -35469,12 +35447,13 @@ pub struct _VipsForeignLoad {
     pub real: *mut VipsImage,
     pub nocache: gboolean,
     pub disc: gboolean,
+    pub error: gboolean,
 }
 #[test]
 fn bindgen_test_layout__VipsForeignLoad() {
     assert_eq!(
         ::std::mem::size_of::<_VipsForeignLoad>(),
-        144usize,
+        152usize,
         concat!("Size of: ", stringify!(_VipsForeignLoad))
     );
     assert_eq!(
@@ -35580,6 +35559,16 @@ fn bindgen_test_layout__VipsForeignLoad() {
             stringify!(_VipsForeignLoad),
             "::",
             stringify!(disc)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_VipsForeignLoad>())).error as *const _ as usize },
+        144usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_VipsForeignLoad),
+            "::",
+            stringify!(error)
         )
     );
 }
@@ -36159,6 +36148,21 @@ extern "C" {
         ...
     ) -> ::std::os::raw::c_int;
 }
+extern "C" {
+    pub fn vips_magicksave(
+        in_: *mut VipsImage,
+        filename: *const ::std::os::raw::c_char,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_magicksave_buffer(
+        in_: *mut VipsImage,
+        buf: *mut *mut ::std::os::raw::c_void,
+        len: *mut usize,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum VipsForeignPngFilter {
@@ -36167,7 +36171,7 @@ pub enum VipsForeignPngFilter {
     VIPS_FOREIGN_PNG_FILTER_UP = 32,
     VIPS_FOREIGN_PNG_FILTER_AVG = 64,
     VIPS_FOREIGN_PNG_FILTER_PAETH = 128,
-    VIPS_FOREIGN_PNG_FILTER_ALL = 234,
+    VIPS_FOREIGN_PNG_FILTER_ALL = 248,
 }
 extern "C" {
     pub fn vips_pngload(
@@ -36287,6 +36291,20 @@ extern "C" {
         ...
     ) -> ::std::os::raw::c_int;
 }
+extern "C" {
+    pub fn vips_niftiload(
+        filename: *const ::std::os::raw::c_char,
+        out: *mut *mut VipsImage,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_niftisave(
+        in_: *mut VipsImage,
+        filename: *const ::std::os::raw::c_char,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum VipsForeignDzLayout {
@@ -36318,10 +36336,67 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn vips_kernel_get_type() -> GType;
+    pub fn vips_operation_math_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_size_get_type() -> GType;
+    pub fn vips_operation_math2_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_round_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_relational_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_boolean_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_complex_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_complex2_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_operation_complexget_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_precision_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_intent_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_pcs_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_extend_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_compass_direction_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_direction_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_align_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_angle_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_angle45_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_interesting_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_blend_mode_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_combine_get_type() -> GType;
+}
+extern "C" {
+    pub fn vips_combine_mode_get_type() -> GType;
 }
 extern "C" {
     pub fn vips_foreign_flags_get_type() -> GType;
@@ -36354,57 +36429,6 @@ extern "C" {
     pub fn vips_foreign_dz_container_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_operation_math_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_math2_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_round_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_relational_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_boolean_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_complex_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_complex2_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_operation_complexget_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_extend_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_compass_direction_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_direction_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_align_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_angle_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_angle45_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_interesting_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_blend_mode_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_token_get_type() -> GType;
-}
-extern "C" {
     pub fn vips_demand_style_get_type() -> GType;
 }
 extern "C" {
@@ -36423,28 +36447,25 @@ extern "C" {
     pub fn vips_access_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_intent_get_type() -> GType;
+    pub fn vips_operation_morphology_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_pcs_get_type() -> GType;
+    pub fn vips_argument_flags_get_type() -> GType;
 }
 extern "C" {
     pub fn vips_operation_flags_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_combine_get_type() -> GType;
+    pub fn vips_region_shrink_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_operation_morphology_get_type() -> GType;
+    pub fn vips_kernel_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_combine_mode_get_type() -> GType;
+    pub fn vips_size_get_type() -> GType;
 }
 extern "C" {
-    pub fn vips_precision_get_type() -> GType;
-}
-extern "C" {
-    pub fn vips_argument_flags_get_type() -> GType;
+    pub fn vips_token_get_type() -> GType;
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -37297,7 +37318,9 @@ pub enum VipsInteresting {
     VIPS_INTERESTING_CENTRE = 1,
     VIPS_INTERESTING_ENTROPY = 2,
     VIPS_INTERESTING_ATTENTION = 3,
-    VIPS_INTERESTING_LAST = 4,
+    VIPS_INTERESTING_LOW = 4,
+    VIPS_INTERESTING_HIGH = 5,
+    VIPS_INTERESTING_LAST = 6,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -37474,6 +37497,13 @@ extern "C" {
         tile_height: ::std::os::raw::c_int,
         across: ::std::os::raw::c_int,
         down: ::std::os::raw::c_int,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_transpose3d(
+        in_: *mut VipsImage,
+        out: *mut *mut VipsImage,
         ...
     ) -> ::std::os::raw::c_int;
 }
@@ -37880,6 +37910,12 @@ extern "C" {
         ...
     ) -> ::std::os::raw::c_int;
 }
+extern "C" {
+    pub fn vips_sobel(in_: *mut VipsImage, out: *mut *mut VipsImage, ...) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_canny(in_: *mut VipsImage, out: *mut *mut VipsImage, ...) -> ::std::os::raw::c_int;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum VipsOperationMorphology {
@@ -38125,9 +38161,10 @@ pub enum VipsKernel {
     VIPS_KERNEL_NEAREST = 0,
     VIPS_KERNEL_LINEAR = 1,
     VIPS_KERNEL_CUBIC = 2,
-    VIPS_KERNEL_LANCZOS2 = 3,
-    VIPS_KERNEL_LANCZOS3 = 4,
-    VIPS_KERNEL_LAST = 5,
+    VIPS_KERNEL_MITCHELL = 3,
+    VIPS_KERNEL_LANCZOS2 = 4,
+    VIPS_KERNEL_LANCZOS3 = 5,
+    VIPS_KERNEL_LAST = 6,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -38217,6 +38254,14 @@ extern "C" {
     pub fn vips_similarity(
         in_: *mut VipsImage,
         out: *mut *mut VipsImage,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_rotate(
+        in_: *mut VipsImage,
+        out: *mut *mut VipsImage,
+        angle: f64,
         ...
     ) -> ::std::os::raw::c_int;
 }
@@ -38465,6 +38510,27 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
+    pub fn vips_CMYK2XYZ(
+        in_: *mut VipsImage,
+        out: *mut *mut VipsImage,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_XYZ2CMYK(
+        in_: *mut VipsImage,
+        out: *mut *mut VipsImage,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_profile_load(
+        name: *const ::std::os::raw::c_char,
+        profile: *mut *mut VipsBlob,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
     pub fn vips_icc_present() -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -38495,6 +38561,13 @@ extern "C" {
         out: *mut *mut VipsImage,
         profile_filename: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn vips_icc_is_compatible_profile(
+        image: *mut VipsImage,
+        data: *const ::std::os::raw::c_void,
+        data_length: usize,
+    ) -> gboolean;
 }
 extern "C" {
     pub fn vips_dE76(
@@ -39076,3993 +39149,6 @@ extern "C" {
         command: *const ::std::os::raw::c_char,
         ...
     ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[link_name = "\u{1}vips__image_sizeof_bandformat"]
-    pub static mut vips__image_sizeof_bandformat: [guint64; 0usize];
-}
-extern "C" {
-    pub fn im_cp_desc(out: *mut VipsImage, in_: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cp_descv(im: *mut VipsImage, ...) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_demand_hint(im: *mut VipsImage, hint: VipsDemandStyle, ...) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_image_new_mode(
-        filename: *const ::std::os::raw::c_char,
-        mode: *const ::std::os::raw::c_char,
-    ) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im_init_world(argv0: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_open(
-        filename: *const ::std::os::raw::c_char,
-        mode: *const ::std::os::raw::c_char,
-    ) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im_open_local(
-        parent: *mut VipsImage,
-        filename: *const ::std::os::raw::c_char,
-        mode: *const ::std::os::raw::c_char,
-    ) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im_open_local_array(
-        parent: *mut VipsImage,
-        images: *mut *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        filename: *const ::std::os::raw::c_char,
-        mode: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_add_callback(
-        im: *mut VipsImage,
-        callback: *const ::std::os::raw::c_char,
-        fn_: VipsCallbackFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_add_callback1(
-        im: *mut VipsImage,
-        callback: *const ::std::os::raw::c_char,
-        fn_: VipsCallbackFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-pub type im_construct_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        arg1: *mut ::std::os::raw::c_void,
-        arg2: *mut ::std::os::raw::c_void,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> *mut ::std::os::raw::c_void,
->;
-extern "C" {
-    pub fn im_local(
-        im: *mut VipsImage,
-        cons: im_construct_fn,
-        dest: VipsCallbackFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-        c: *mut ::std::os::raw::c_void,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn im_local_array(
-        im: *mut VipsImage,
-        out: *mut *mut ::std::os::raw::c_void,
-        n: ::std::os::raw::c_int,
-        cons: im_construct_fn,
-        dest: VipsCallbackFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-        c: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_close(im: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_init(filename: *const ::std::os::raw::c_char) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im_Type2char(type_: VipsInterpretation) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_BandFmt2char(fmt: VipsBandFormat) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_Coding2char(coding: VipsCoding) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_Compression2char(n: ::std::os::raw::c_int) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_dtype2char(n: VipsImageType) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_dhint2char(style: VipsDemandStyle) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_char2Type(str: *const ::std::os::raw::c_char) -> VipsInterpretation;
-}
-extern "C" {
-    pub fn im_char2BandFmt(str: *const ::std::os::raw::c_char) -> VipsBandFormat;
-}
-extern "C" {
-    pub fn im_char2Coding(str: *const ::std::os::raw::c_char) -> VipsCoding;
-}
-extern "C" {
-    pub fn im_char2dtype(str: *const ::std::os::raw::c_char) -> VipsImageType;
-}
-extern "C" {
-    pub fn im_char2dhint(str: *const ::std::os::raw::c_char) -> VipsDemandStyle;
-}
-pub type im_generate_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        out: *mut VipsRegion,
-        seq: *mut ::std::os::raw::c_void,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int,
->;
-extern "C" {
-    pub fn im_generate(
-        im: *mut VipsImage,
-        start: VipsStartFn,
-        generate: im_generate_fn,
-        stop: VipsStopFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cache(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        max: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-pub type im_wrapone_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        in_: *mut ::std::os::raw::c_void,
-        out: *mut ::std::os::raw::c_void,
-        width: ::std::os::raw::c_int,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ),
->;
-extern "C" {
-    pub fn im_wrapone(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        fn_: im_wrapone_fn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-pub type im_wraptwo_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        in1: *mut ::std::os::raw::c_void,
-        in2: *mut ::std::os::raw::c_void,
-        out: *mut ::std::os::raw::c_void,
-        width: ::std::os::raw::c_int,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ),
->;
-extern "C" {
-    pub fn im_wraptwo(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-        fn_: im_wraptwo_fn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-pub type im_wrapmany_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        in_: *mut *mut ::std::os::raw::c_void,
-        out: *mut ::std::os::raw::c_void,
-        width: ::std::os::raw::c_int,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ),
->;
-extern "C" {
-    pub fn im_wrapmany(
-        in_: *mut *mut VipsImage,
-        out: *mut VipsImage,
-        fn_: im_wrapmany_fn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_ref_string_get_length(value: *const GValue) -> usize;
-}
-extern "C" {
-    pub fn im_add(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_subtract(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_multiply(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_divide(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_min(in_: *mut VipsImage, out: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_minpos(
-        in_: *mut VipsImage,
-        xpos: *mut ::std::os::raw::c_int,
-        ypos: *mut ::std::os::raw::c_int,
-        out: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_max(in_: *mut VipsImage, out: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maxpos(
-        in_: *mut VipsImage,
-        xpos: *mut ::std::os::raw::c_int,
-        ypos: *mut ::std::os::raw::c_int,
-        out: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_avg(in_: *mut VipsImage, out: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_deviate(in_: *mut VipsImage, out: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_invert(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lintra(
-        a: f64,
-        in_: *mut VipsImage,
-        b: f64,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lintra_vec(
-        n: ::std::os::raw::c_int,
-        a: *mut f64,
-        in_: *mut VipsImage,
-        b: *mut f64,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_abs(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_sign(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_stats(in_: *mut VipsImage) -> *mut DOUBLEMASK;
-}
-extern "C" {
-    pub fn im_measure_area(
-        im: *mut VipsImage,
-        left: ::std::os::raw::c_int,
-        top: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        h: ::std::os::raw::c_int,
-        v: ::std::os::raw::c_int,
-        sel: *mut ::std::os::raw::c_int,
-        nsel: ::std::os::raw::c_int,
-        name: *const ::std::os::raw::c_char,
-    ) -> *mut DOUBLEMASK;
-}
-extern "C" {
-    pub fn im_sintra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_costra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tantra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_asintra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_acostra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_atantra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_logtra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_log10tra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_exptra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_exp10tra(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_floor(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rint(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_ceil(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_equal(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_notequal(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_less(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lesseq(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_more(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_moreeq(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_andimage(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_orimage(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eorimage(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_andimage_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_orimage_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eorimage_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_andimageconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_orimageconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eorimageconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_shiftleft_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_shiftleft(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_shiftright_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_shiftright(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_remainder(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_remainder_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_remainderconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_powtra(in_: *mut VipsImage, out: *mut VipsImage, e: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_powtra_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        e: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_expntra(in_: *mut VipsImage, out: *mut VipsImage, e: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_expntra_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        e: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_equal_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_notequal_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_less_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lesseq_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_more_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_moreeq_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_equalconst(in_: *mut VipsImage, out: *mut VipsImage, c: f64)
-        -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_notequalconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lessconst(in_: *mut VipsImage, out: *mut VipsImage, c: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lesseqconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_moreconst(in_: *mut VipsImage, out: *mut VipsImage, c: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_moreeqconst(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        c: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maxpos_vec(
-        im: *mut VipsImage,
-        xpos: *mut ::std::os::raw::c_int,
-        ypos: *mut ::std::os::raw::c_int,
-        maxima: *mut f64,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_minpos_vec(
-        im: *mut VipsImage,
-        xpos: *mut ::std::os::raw::c_int,
-        ypos: *mut ::std::os::raw::c_int,
-        minima: *mut f64,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maxpos_avg(
-        im: *mut VipsImage,
-        xpos: *mut f64,
-        ypos: *mut f64,
-        out: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_linreg(
-        ins: *mut *mut VipsImage,
-        out: *mut VipsImage,
-        xs: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cross_phase(
-        a: *mut VipsImage,
-        b: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_point(
-        im: *mut VipsImage,
-        interpolate: *mut VipsInterpolate,
-        x: f64,
-        y: f64,
-        band: ::std::os::raw::c_int,
-        out: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_point_bilinear(
-        im: *mut VipsImage,
-        x: f64,
-        y: f64,
-        band: ::std::os::raw::c_int,
-        out: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_set(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        interpretation: VipsInterpretation,
-        xres: f32,
-        yres: f32,
-        xoffset: ::std::os::raw::c_int,
-        yoffset: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_set_meta(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        field: *const ::std::os::raw::c_char,
-        value: *mut GValue,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_morph(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        bands: ::std::os::raw::c_int,
-        format: VipsBandFormat,
-        coding: VipsCoding,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_swap(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_file(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_copy_native(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        is_msb_first: gboolean,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_embed(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        type_: ::std::os::raw::c_int,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fliphor(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flipver(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_insert(
-        main: *mut VipsImage,
-        sub: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_insert_noexpand(
-        main: *mut VipsImage,
-        sub: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lrjoin(
-        left: *mut VipsImage,
-        right: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tbjoin(
-        top: *mut VipsImage,
-        bottom: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_extract_area(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        left: ::std::os::raw::c_int,
-        top: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_extract_band(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        band: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_extract_bands(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        band: ::std::os::raw::c_int,
-        nbands: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_extract_areabands(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        left: ::std::os::raw::c_int,
-        top: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        band: ::std::os::raw::c_int,
-        nbands: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_replicate(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        across: ::std::os::raw::c_int,
-        down: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_wrap(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rotquad(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2fmt(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        fmt: VipsBandFormat,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_bandjoin(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gbandjoin(
-        in_: *mut *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rank_image(
-        in_: *mut *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        index: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maxvalue(
-        in_: *mut *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_grid(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        tile_height: ::std::os::raw::c_int,
-        across: ::std::os::raw::c_int,
-        down: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_scale(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_scaleps(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_msb(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_msb_band(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        band: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_zoom(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xfac: ::std::os::raw::c_int,
-        yfac: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_subsample(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xshrink: ::std::os::raw::c_int,
-        yshrink: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gaussnoise(
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        mean: f64,
-        sigma: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_text(
-        out: *mut VipsImage,
-        text: *const ::std::os::raw::c_char,
-        font: *const ::std::os::raw::c_char,
-        width: ::std::os::raw::c_int,
-        alignment: ::std::os::raw::c_int,
-        dpi: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_black(
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        bands: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_make_xy(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_zone(out: *mut VipsImage, size: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fzone(out: *mut VipsImage, size: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_feye(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        factor: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eye(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        factor: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_grey(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fgrey(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_sines(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        horfreq: f64,
-        verfreq: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_buildlut(input: *mut DOUBLEMASK, output: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_invertlut(
-        input: *mut DOUBLEMASK,
-        output: *mut VipsImage,
-        lut_size: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_identity(lut: *mut VipsImage, bands: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_identity_ushort(
-        lut: *mut VipsImage,
-        bands: ::std::os::raw::c_int,
-        sz: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tone_build_range(
-        out: *mut VipsImage,
-        in_max: ::std::os::raw::c_int,
-        out_max: ::std::os::raw::c_int,
-        Lb: f64,
-        Lw: f64,
-        Ps: f64,
-        Pm: f64,
-        Ph: f64,
-        S: f64,
-        M: f64,
-        H: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tone_build(
-        out: *mut VipsImage,
-        Lb: f64,
-        Lw: f64,
-        Ps: f64,
-        Pm: f64,
-        Ph: f64,
-        S: f64,
-        M: f64,
-        H: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_system(
-        im: *mut VipsImage,
-        cmd: *const ::std::os::raw::c_char,
-        out: *mut *mut ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_system_image(
-        im: *mut VipsImage,
-        in_format: *const ::std::os::raw::c_char,
-        out_format: *const ::std::os::raw::c_char,
-        cmd_format: *const ::std::os::raw::c_char,
-        log: *mut *mut ::std::os::raw::c_char,
-    ) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im_c2amph(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_c2rect(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_c2imag(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_c2real(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_ri2c(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rot90(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rot180(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rot270(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_ifthenelse(
-        c: *mut VipsImage,
-        a: *mut VipsImage,
-        b: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_blend(
-        c: *mut VipsImage,
-        a: *mut VipsImage,
-        b: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_vips2mask(
-        in_: *mut VipsImage,
-        filename: *const ::std::os::raw::c_char,
-    ) -> *mut DOUBLEMASK;
-}
-extern "C" {
-    pub fn im_vips2imask(
-        in_: *mut VipsImage,
-        filename: *const ::std::os::raw::c_char,
-    ) -> *mut INTMASK;
-}
-extern "C" {
-    pub fn im_mask2vips(in_: *mut DOUBLEMASK, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_imask2vips(in_: *mut INTMASK, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_bandmean(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_recomb(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        recomb: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_argb2rgba(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_falsecolour(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gammacorrect(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        exponent: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tile_cache_random(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        tile_width: ::std::os::raw::c_int,
-        tile_height: ::std::os::raw::c_int,
-        max_tiles: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_shrink(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xshrink: f64,
-        yshrink: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_affinei(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        interpolate: *mut VipsInterpolate,
-        a: f64,
-        b: f64,
-        c: f64,
-        d: f64,
-        dx: f64,
-        dy: f64,
-        ox: ::std::os::raw::c_int,
-        oy: ::std::os::raw::c_int,
-        ow: ::std::os::raw::c_int,
-        oh: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_affinei_all(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        interpolate: *mut VipsInterpolate,
-        a: f64,
-        b: f64,
-        c: f64,
-        d: f64,
-        dx: f64,
-        dy: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rightshift_size(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xshift: ::std::os::raw::c_int,
-        yshift: ::std::os::raw::c_int,
-        band_fmt: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2XYZ_temp(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        X0: f64,
-        Y0: f64,
-        Z0: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2XYZ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_XYZ2Lab(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_XYZ2Lab_temp(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        X0: f64,
-        Y0: f64,
-        Z0: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2LCh(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LCh2Lab(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LCh2UCS(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_UCS2LCh(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_XYZ2Yxy(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Yxy2XYZ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_float2rad(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rad2float(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2LabQ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabQ2Lab(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2LabS(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabS2Lab(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabQ2LabS(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabS2LabQ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabQ2sRGB(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_XYZ2sRGB(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_sRGB2XYZ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_col_display {
-    _unused: [u8; 0],
-}
-extern "C" {
-    pub fn im_Lab2disp(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        disp: *mut im_col_display,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_disp2Lab(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        disp: *mut im_col_display,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dE_fromdisp(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: *mut VipsImage,
-        arg4: *mut im_col_display,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dECMC_fromdisp(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: *mut VipsImage,
-        arg4: *mut im_col_display,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_transform(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        input_profile_filename: *const ::std::os::raw::c_char,
-        output_profile_filename: *const ::std::os::raw::c_char,
-        intent: VipsIntent,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_import(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        input_profile_filename: *const ::std::os::raw::c_char,
-        intent: VipsIntent,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_import_embedded(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        intent: VipsIntent,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_export_depth(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        depth: ::std::os::raw::c_int,
-        output_profile_filename: *const ::std::os::raw::c_char,
-        intent: VipsIntent,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_ac2rc(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        profile_filename: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_LabQ2XYZ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_UCS2XYZ(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_UCS2Lab(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_Lab2UCS(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_XYZ2UCS(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dE_fromLab(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dECMC_fromLab(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dE_fromXYZ(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dE00_fromLab(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lab_morph(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-        L_offset: f64,
-        L_scale: f64,
-        a_scale: f64,
-        b_scale: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_quadratic(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        coeff: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maplut(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        lut: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_hist(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histgr(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histcum(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histnorm(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histeq(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_heq(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histnD(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        bins: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_hist_indexed(
-        index: *mut VipsImage,
-        value: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histplot(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_project(
-        in_: *mut VipsImage,
-        hout: *mut VipsImage,
-        vout: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_profile(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        dir: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_hsp(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_histspec(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lhisteq(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xwin: ::std::os::raw::c_int,
-        ywin: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_stdif(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        a: f64,
-        m0: f64,
-        b: f64,
-        s0: f64,
-        xwin: ::std::os::raw::c_int,
-        ywin: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_mpercent(
-        in_: *mut VipsImage,
-        percent: f64,
-        out: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_mpercent_hist(
-        hist: *mut VipsImage,
-        percent: f64,
-        out: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_ismonotonic(
-        lut: *mut VipsImage,
-        out: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tone_analyse(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        Ps: f64,
-        Pm: f64,
-        Ph: f64,
-        S: f64,
-        M: f64,
-        H: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tone_map(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        lut: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dilate(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_erode(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_aconv(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-        n_layers: ::std::os::raw::c_int,
-        cluster: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_conv(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_conv_f(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_aconvsep(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-        n_layers: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsep(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsep_f(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_compass(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gradient(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lindetect(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_addgnoise(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        sigma: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_contrast_surface_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        half_win_size: ::std::os::raw::c_int,
-        spacing: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_contrast_surface(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        half_win_size: ::std::os::raw::c_int,
-        spacing: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_grad_x(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_grad_y(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fastcor(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_spcor(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gradcor(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_sharpen(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask_size: ::std::os::raw::c_int,
-        x1: f64,
-        y2: f64,
-        y3: f64,
-        m1: f64,
-        m2: f64,
-    ) -> ::std::os::raw::c_int;
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum ImMaskType {
-    IM_MASK_IDEAL_HIGHPASS = 0,
-    IM_MASK_IDEAL_LOWPASS = 1,
-    IM_MASK_BUTTERWORTH_HIGHPASS = 2,
-    IM_MASK_BUTTERWORTH_LOWPASS = 3,
-    IM_MASK_GAUSS_HIGHPASS = 4,
-    IM_MASK_GAUSS_LOWPASS = 5,
-    IM_MASK_IDEAL_RINGPASS = 6,
-    IM_MASK_IDEAL_RINGREJECT = 7,
-    IM_MASK_BUTTERWORTH_RINGPASS = 8,
-    IM_MASK_BUTTERWORTH_RINGREJECT = 9,
-    IM_MASK_GAUSS_RINGPASS = 10,
-    IM_MASK_GAUSS_RINGREJECT = 11,
-    IM_MASK_IDEAL_BANDPASS = 12,
-    IM_MASK_IDEAL_BANDREJECT = 13,
-    IM_MASK_BUTTERWORTH_BANDPASS = 14,
-    IM_MASK_BUTTERWORTH_BANDREJECT = 15,
-    IM_MASK_GAUSS_BANDPASS = 16,
-    IM_MASK_GAUSS_BANDREJECT = 17,
-    IM_MASK_FRACTAL_FLT = 18,
-}
-extern "C" {
-    pub fn im_flt_image_freq(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        flag: ImMaskType,
-        ...
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_create_fmask(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        flag: ImMaskType,
-        ...
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fwfft(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_invfft(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_invfftr(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_freqflt(
-        in_: *mut VipsImage,
-        mask: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_disp_ps(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fractsurf(
-        out: *mut VipsImage,
-        size: ::std::os::raw::c_int,
-        frd: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_phasecor_fft(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cntlines(
-        im: *mut VipsImage,
-        nolines: *mut f64,
-        flag: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_label_regions(
-        test: *mut VipsImage,
-        mask: *mut VipsImage,
-        segments: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rank(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        index: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_zerox(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        sign: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_benchmarkn(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_benchmark2(in_: *mut VipsImage, out: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_circle(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        radius: ::std::os::raw::c_int,
-        fill: gboolean,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_mask(
-        image: *mut VipsImage,
-        mask_im: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_image(
-        image: *mut VipsImage,
-        sub: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_rect(
-        image: *mut VipsImage,
-        left: ::std::os::raw::c_int,
-        top: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        fill: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-pub type VipsPlotFn = ::std::option::Option<
-    unsafe extern "C" fn(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-        c: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int,
->;
-extern "C" {
-    pub fn im_draw_line_user(
-        image: *mut VipsImage,
-        x1: ::std::os::raw::c_int,
-        y1: ::std::os::raw::c_int,
-        x2: ::std::os::raw::c_int,
-        y2: ::std::os::raw::c_int,
-        plot: VipsPlotFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-        c: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_line(
-        image: *mut VipsImage,
-        x1: ::std::os::raw::c_int,
-        y1: ::std::os::raw::c_int,
-        x2: ::std::os::raw::c_int,
-        y2: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lineset(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut VipsImage,
-        ink: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        x1v: *mut ::std::os::raw::c_int,
-        y1v: *mut ::std::os::raw::c_int,
-        x2v: *mut ::std::os::raw::c_int,
-        y2v: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_insertset(
-        main: *mut VipsImage,
-        sub: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        x: *mut ::std::os::raw::c_int,
-        y: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_flood(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_flood_blob(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_flood_other(
-        image: *mut VipsImage,
-        test: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        serial: ::std::os::raw::c_int,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_point(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_read_point(
-        image: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_draw_smudge(
-        image: *mut VipsImage,
-        left: ::std::os::raw::c_int,
-        top: ::std::os::raw::c_int,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_filename_split(
-        path: *const ::std::os::raw::c_char,
-        name: *mut ::std::os::raw::c_char,
-        mode: *mut ::std::os::raw::c_char,
-    );
-}
-extern "C" {
-    pub fn im_skip_dir(filename: *const ::std::os::raw::c_char) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_filename_suffix(
-        path: *const ::std::os::raw::c_char,
-        suffix: *mut ::std::os::raw::c_char,
-    );
-}
-extern "C" {
-    pub fn im_filename_suffix_match(
-        path: *const ::std::os::raw::c_char,
-        suffixes: *mut *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_getnextoption(in_: *mut *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_getsuboption(buf: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn im_lrmerge(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tbmerge(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lrmosaic(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-        xref: ::std::os::raw::c_int,
-        yref: ::std::os::raw::c_int,
-        xsec: ::std::os::raw::c_int,
-        ysec: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-        balancetype: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tbmosaic(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-        xref: ::std::os::raw::c_int,
-        yref: ::std::os::raw::c_int,
-        xsec: ::std::os::raw::c_int,
-        ysec: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-        balancetype: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_match_linear(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_match_linear_search(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_global_balance(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        gamma: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_global_balancef(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        gamma: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_remosaic(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        old_str: *const ::std::os::raw::c_char,
-        new_str: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lrmerge1(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tbmerge1(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_lrmosaic1(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-        balancetype: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_tbmosaic1(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno: ::std::os::raw::c_int,
-        xr1: ::std::os::raw::c_int,
-        yr1: ::std::os::raw::c_int,
-        xs1: ::std::os::raw::c_int,
-        ys1: ::std::os::raw::c_int,
-        xr2: ::std::os::raw::c_int,
-        yr2: ::std::os::raw::c_int,
-        xs2: ::std::os::raw::c_int,
-        ys2: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-        balancetype: ::std::os::raw::c_int,
-        mwidth: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_correl(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        xref: ::std::os::raw::c_int,
-        yref: ::std::os::raw::c_int,
-        xsec: ::std::os::raw::c_int,
-        ysec: ::std::os::raw::c_int,
-        hwindowsize: ::std::os::raw::c_int,
-        hsearchsize: ::std::os::raw::c_int,
-        correlation: *mut f64,
-        x: *mut ::std::os::raw::c_int,
-        y: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_align_bands(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_maxpos_subpel(in_: *mut VipsImage, x: *mut f64, y: *mut f64)
-        -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_foreign_load(
-        filename: *const ::std::os::raw::c_char,
-        out: *mut *mut VipsImage,
-        ...
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_foreign_save(
-        in_: *mut VipsImage,
-        filename: *const ::std::os::raw::c_char,
-        ...
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips__deprecated_open_read(
-        filename: *const ::std::os::raw::c_char,
-        sequential: gboolean,
-    ) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn vips__deprecated_open_write(filename: *const ::std::os::raw::c_char) -> *mut VipsImage;
-}
-extern "C" {
-    pub fn im__format_init();
-}
-extern "C" {
-    pub fn im__tiff_register();
-}
-extern "C" {
-    pub fn im__jpeg_register();
-}
-extern "C" {
-    pub fn im__png_register();
-}
-extern "C" {
-    pub fn im__csv_register();
-}
-extern "C" {
-    pub fn im__ppm_register();
-}
-extern "C" {
-    pub fn im__analyze_register();
-}
-extern "C" {
-    pub fn im__exr_register();
-}
-extern "C" {
-    pub fn im__magick_register();
-}
-extern "C" {
-    pub fn im__bandup(
-        domain: *const ::std::os::raw::c_char,
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__bandalike_vec(
-        domain: *const ::std::os::raw::c_char,
-        in_: *mut *mut VipsImage,
-        out: *mut *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__bandalike(
-        domain: *const ::std::os::raw::c_char,
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out1: *mut VipsImage,
-        out2: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__formatalike_vec(
-        in_: *mut *mut VipsImage,
-        out: *mut *mut VipsImage,
-        n: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__formatalike(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out1: *mut VipsImage,
-        out2: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-pub type im__wrapscan_fn = ::std::option::Option<
-    unsafe extern "C" fn(
-        p: *mut ::std::os::raw::c_void,
-        n: ::std::os::raw::c_int,
-        seq: *mut ::std::os::raw::c_void,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int,
->;
-extern "C" {
-    pub fn im__wrapscan(
-        in_: *mut VipsImage,
-        start: VipsStartFn,
-        scan: im__wrapscan_fn,
-        stop: VipsStopFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__colour_difference(
-        domain: *const ::std::os::raw::c_char,
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-        buffer_fn: im_wrapmany_fn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__colour_unary(
-        domain: *const ::std::os::raw::c_char,
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        interpretation: VipsInterpretation,
-        buffer_fn: im_wrapone_fn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__insert_base(
-        domain: *const ::std::os::raw::c_char,
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> *mut *mut VipsImage;
-}
-extern "C" {
-    pub fn im__find_lroverlap(
-        ref_in: *mut VipsImage,
-        sec_in: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno_in: ::std::os::raw::c_int,
-        xref: ::std::os::raw::c_int,
-        yref: ::std::os::raw::c_int,
-        xsec: ::std::os::raw::c_int,
-        ysec: ::std::os::raw::c_int,
-        halfcorrelation: ::std::os::raw::c_int,
-        halfarea: ::std::os::raw::c_int,
-        dx0: *mut ::std::os::raw::c_int,
-        dy0: *mut ::std::os::raw::c_int,
-        scale1: *mut f64,
-        angle1: *mut f64,
-        dx1: *mut f64,
-        dy1: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__find_tboverlap(
-        ref_in: *mut VipsImage,
-        sec_in: *mut VipsImage,
-        out: *mut VipsImage,
-        bandno_in: ::std::os::raw::c_int,
-        xref: ::std::os::raw::c_int,
-        yref: ::std::os::raw::c_int,
-        xsec: ::std::os::raw::c_int,
-        ysec: ::std::os::raw::c_int,
-        halfcorrelation: ::std::os::raw::c_int,
-        halfarea: ::std::os::raw::c_int,
-        dx0: *mut ::std::os::raw::c_int,
-        dy0: *mut ::std::os::raw::c_int,
-        scale1: *mut f64,
-        angle1: *mut f64,
-        dx1: *mut f64,
-        dy1: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__find_best_contrast(
-        image: *mut VipsImage,
-        xpos: ::std::os::raw::c_int,
-        ypos: ::std::os::raw::c_int,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        xarray: *mut ::std::os::raw::c_int,
-        yarray: *mut ::std::os::raw::c_int,
-        cont: *mut ::std::os::raw::c_int,
-        nbest: ::std::os::raw::c_int,
-        hcorsize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__balance(
-        ref_: *mut VipsImage,
-        sec: *mut VipsImage,
-        out: *mut VipsImage,
-        ref_out: *mut *mut VipsImage,
-        sec_out: *mut *mut VipsImage,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-        balancetype: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn imb_LCh2Lab(arg1: *mut f32, arg2: *mut f32, arg3: ::std::os::raw::c_int);
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_colour_temperature {
-    pub X0: f64,
-    pub Y0: f64,
-    pub Z0: f64,
-}
-#[test]
-fn bindgen_test_layout_im_colour_temperature() {
-    assert_eq!(
-        ::std::mem::size_of::<im_colour_temperature>(),
-        24usize,
-        concat!("Size of: ", stringify!(im_colour_temperature))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_colour_temperature>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_colour_temperature))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_colour_temperature>())).X0 as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_colour_temperature),
-            "::",
-            stringify!(X0)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_colour_temperature>())).Y0 as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_colour_temperature),
-            "::",
-            stringify!(Y0)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_colour_temperature>())).Z0 as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_colour_temperature),
-            "::",
-            stringify!(Z0)
-        )
-    );
-}
-extern "C" {
-    pub fn imb_XYZ2Lab(
-        arg1: *mut f32,
-        arg2: *mut f32,
-        arg3: ::std::os::raw::c_int,
-        arg4: *mut im_colour_temperature,
-    );
-}
-extern "C" {
-    pub fn imb_LabS2Lab(
-        arg1: *mut ::std::os::raw::c_short,
-        arg2: *mut f32,
-        arg3: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn imb_Lab2LabS(
-        arg1: *mut f32,
-        arg2: *mut ::std::os::raw::c_short,
-        n: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn vips__Lab2LabQ_vec(out: *mut VipsPel, in_: *mut f32, width: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn vips__LabQ2Lab_vec(out: *mut f32, in_: *mut VipsPel, width: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn im_copy_dmask_matrix(mask: *mut DOUBLEMASK, matrix: *mut *mut f64);
-}
-extern "C" {
-    pub fn im_copy_matrix_dmask(matrix: *mut *mut f64, mask: *mut DOUBLEMASK);
-}
-extern "C" {
-    pub fn im_ivector(
-        nl: ::std::os::raw::c_int,
-        nh: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fvector(nl: ::std::os::raw::c_int, nh: ::std::os::raw::c_int) -> *mut f32;
-}
-extern "C" {
-    pub fn im_dvector(nl: ::std::os::raw::c_int, nh: ::std::os::raw::c_int) -> *mut f64;
-}
-extern "C" {
-    pub fn im_free_ivector(
-        v: *mut ::std::os::raw::c_int,
-        nl: ::std::os::raw::c_int,
-        nh: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn im_free_fvector(v: *mut f32, nl: ::std::os::raw::c_int, nh: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn im_free_dvector(v: *mut f64, nl: ::std::os::raw::c_int, nh: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn im_imat_alloc(
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    ) -> *mut *mut ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_free_imat(
-        m: *mut *mut ::std::os::raw::c_int,
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn im_fmat_alloc(
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    ) -> *mut *mut f32;
-}
-extern "C" {
-    pub fn im_free_fmat(
-        m: *mut *mut f32,
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn im_dmat_alloc(
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    ) -> *mut *mut f64;
-}
-extern "C" {
-    pub fn im_free_dmat(
-        m: *mut *mut f64,
-        nrl: ::std::os::raw::c_int,
-        nrh: ::std::os::raw::c_int,
-        ncl: ::std::os::raw::c_int,
-        nch: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn im_invmat(arg1: *mut *mut f64, arg2: ::std::os::raw::c_int) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_offsets45(size: ::std::os::raw::c_int) -> *mut ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_conv_f_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsep_f_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_greyc_mask(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut VipsImage,
-        iterations: ::std::os::raw::c_int,
-        amplitude: f32,
-        sharpness: f32,
-        anisotropy: f32,
-        alpha: f32,
-        sigma: f32,
-        dl: f32,
-        da: f32,
-        gauss_prec: f32,
-        interpolation: ::std::os::raw::c_int,
-        fast_approx: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_check_imask(
-        domain: *const ::std::os::raw::c_char,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_check_dmask(
-        domain: *const ::std::os::raw::c_char,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_check_dmask_1d(
-        domain: *const ::std::os::raw::c_char,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_get_option_group() -> *mut GOptionGroup;
-}
-pub type im_arg_type = *mut ::std::os::raw::c_char;
-pub type im_object = *mut ::std::os::raw::c_void;
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum im_type_flags {
-    IM_TYPE_NONE = 0,
-    IM_TYPE_OUTPUT = 1,
-    IM_TYPE_ARG = 2,
-    IM_TYPE_RW = 4,
-}
-pub type im_init_obj_fn = ::std::option::Option<
-    unsafe extern "C" fn(obj: *mut im_object, str: *mut ::std::os::raw::c_char)
-        -> ::std::os::raw::c_int,
->;
-pub type im_dest_obj_fn =
-    ::std::option::Option<unsafe extern "C" fn(obj: im_object) -> ::std::os::raw::c_int>;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_type_desc {
-    pub type_: im_arg_type,
-    pub size: ::std::os::raw::c_int,
-    pub flags: im_type_flags,
-    pub init: im_init_obj_fn,
-    pub dest: im_dest_obj_fn,
-}
-#[test]
-fn bindgen_test_layout_im_type_desc() {
-    assert_eq!(
-        ::std::mem::size_of::<im_type_desc>(),
-        32usize,
-        concat!("Size of: ", stringify!(im_type_desc))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_type_desc>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_type_desc))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_type_desc>())).type_ as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_type_desc),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_type_desc>())).size as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_type_desc),
-            "::",
-            stringify!(size)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_type_desc>())).flags as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_type_desc),
-            "::",
-            stringify!(flags)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_type_desc>())).init as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_type_desc),
-            "::",
-            stringify!(init)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_type_desc>())).dest as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_type_desc),
-            "::",
-            stringify!(dest)
-        )
-    );
-}
-pub type im_print_obj_fn =
-    ::std::option::Option<unsafe extern "C" fn(obj: im_object) -> ::std::os::raw::c_int>;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_arg_desc {
-    pub name: *mut ::std::os::raw::c_char,
-    pub desc: *mut im_type_desc,
-    pub print: im_print_obj_fn,
-}
-#[test]
-fn bindgen_test_layout_im_arg_desc() {
-    assert_eq!(
-        ::std::mem::size_of::<im_arg_desc>(),
-        24usize,
-        concat!("Size of: ", stringify!(im_arg_desc))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_arg_desc>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_arg_desc))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_arg_desc>())).name as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_arg_desc),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_arg_desc>())).desc as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_arg_desc),
-            "::",
-            stringify!(desc)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_arg_desc>())).print as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_arg_desc),
-            "::",
-            stringify!(print)
-        )
-    );
-}
-pub type im_dispatch_fn =
-    ::std::option::Option<unsafe extern "C" fn(argv: *mut im_object) -> ::std::os::raw::c_int>;
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum im_fn_flags {
-    IM_FN_NONE = 0,
-    IM_FN_PIO = 1,
-    IM_FN_TRANSFORM = 2,
-    IM_FN_PTOP = 4,
-    IM_FN_NOCACHE = 8,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_function {
-    pub name: *mut ::std::os::raw::c_char,
-    pub desc: *mut ::std::os::raw::c_char,
-    pub flags: im_fn_flags,
-    pub disp: im_dispatch_fn,
-    pub argc: ::std::os::raw::c_int,
-    pub argv: *mut im_arg_desc,
-}
-#[test]
-fn bindgen_test_layout_im_function() {
-    assert_eq!(
-        ::std::mem::size_of::<im_function>(),
-        48usize,
-        concat!("Size of: ", stringify!(im_function))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_function>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_function))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).name as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).desc as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(desc)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).flags as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(flags)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).disp as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(disp)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).argc as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(argc)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_function>())).argv as *const _ as usize },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_function),
-            "::",
-            stringify!(argv)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_package {
-    pub name: *mut ::std::os::raw::c_char,
-    pub nfuncs: ::std::os::raw::c_int,
-    pub table: *mut *mut im_function,
-}
-#[test]
-fn bindgen_test_layout_im_package() {
-    assert_eq!(
-        ::std::mem::size_of::<im_package>(),
-        24usize,
-        concat!("Size of: ", stringify!(im_package))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_package>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_package))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_package>())).name as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_package),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_package>())).nfuncs as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_package),
-            "::",
-            stringify!(nfuncs)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_package>())).table as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_package),
-            "::",
-            stringify!(table)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_mask_object {
-    pub name: *mut ::std::os::raw::c_char,
-    pub mask: *mut ::std::os::raw::c_void,
-}
-#[test]
-fn bindgen_test_layout_im_mask_object() {
-    assert_eq!(
-        ::std::mem::size_of::<im_mask_object>(),
-        16usize,
-        concat!("Size of: ", stringify!(im_mask_object))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_mask_object>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_mask_object))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_mask_object>())).name as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_mask_object),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_mask_object>())).mask as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_mask_object),
-            "::",
-            stringify!(mask)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_doublevec_object {
-    pub n: ::std::os::raw::c_int,
-    pub vec: *mut f64,
-}
-#[test]
-fn bindgen_test_layout_im_doublevec_object() {
-    assert_eq!(
-        ::std::mem::size_of::<im_doublevec_object>(),
-        16usize,
-        concat!("Size of: ", stringify!(im_doublevec_object))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_doublevec_object>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_doublevec_object))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_doublevec_object>())).n as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_doublevec_object),
-            "::",
-            stringify!(n)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_doublevec_object>())).vec as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_doublevec_object),
-            "::",
-            stringify!(vec)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_intvec_object {
-    pub n: ::std::os::raw::c_int,
-    pub vec: *mut ::std::os::raw::c_int,
-}
-#[test]
-fn bindgen_test_layout_im_intvec_object() {
-    assert_eq!(
-        ::std::mem::size_of::<im_intvec_object>(),
-        16usize,
-        concat!("Size of: ", stringify!(im_intvec_object))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_intvec_object>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_intvec_object))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_intvec_object>())).n as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_intvec_object),
-            "::",
-            stringify!(n)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_intvec_object>())).vec as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_intvec_object),
-            "::",
-            stringify!(vec)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct im_imagevec_object {
-    pub n: ::std::os::raw::c_int,
-    pub vec: *mut *mut VipsImage,
-}
-#[test]
-fn bindgen_test_layout_im_imagevec_object() {
-    assert_eq!(
-        ::std::mem::size_of::<im_imagevec_object>(),
-        16usize,
-        concat!("Size of: ", stringify!(im_imagevec_object))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<im_imagevec_object>(),
-        8usize,
-        concat!("Alignment of ", stringify!(im_imagevec_object))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_imagevec_object>())).n as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_imagevec_object),
-            "::",
-            stringify!(n)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<im_imagevec_object>())).vec as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(im_imagevec_object),
-            "::",
-            stringify!(vec)
-        )
-    );
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_int"]
-    pub static mut im__input_int: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_intvec"]
-    pub static mut im__input_intvec: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_imask"]
-    pub static mut im__input_imask: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_int"]
-    pub static mut im__output_int: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_intvec"]
-    pub static mut im__output_intvec: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_imask"]
-    pub static mut im__output_imask: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_double"]
-    pub static mut im__input_double: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_doublevec"]
-    pub static mut im__input_doublevec: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_dmask"]
-    pub static mut im__input_dmask: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_double"]
-    pub static mut im__output_double: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_doublevec"]
-    pub static mut im__output_doublevec: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_dmask"]
-    pub static mut im__output_dmask: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_dmask_screen"]
-    pub static mut im__output_dmask_screen: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_complex"]
-    pub static mut im__output_complex: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_string"]
-    pub static mut im__input_string: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_string"]
-    pub static mut im__output_string: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_imagevec"]
-    pub static mut im__input_imagevec: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_image"]
-    pub static mut im__input_image: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_image"]
-    pub static mut im__output_image: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__rw_image"]
-    pub static mut im__rw_image: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_display"]
-    pub static mut im__input_display: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_display"]
-    pub static mut im__output_display: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_gvalue"]
-    pub static mut im__input_gvalue: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__output_gvalue"]
-    pub static mut im__output_gvalue: im_type_desc;
-}
-extern "C" {
-    #[link_name = "\u{1}im__input_interpolate"]
-    pub static mut im__input_interpolate: im_type_desc;
-}
-extern "C" {
-    pub fn im__iprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__ivprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__dprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__dvprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__dmsprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__cprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__sprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__displayprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im__gprint(obj: im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_load_plugin(name: *const ::std::os::raw::c_char) -> *mut im_package;
-}
-extern "C" {
-    pub fn im_load_plugins(fmt: *const ::std::os::raw::c_char, ...) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_close_plugins() -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_map_packages(
-        fn_: VipsSListMap2Fn,
-        a: *mut ::std::os::raw::c_void,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn im_find_function(name: *const ::std::os::raw::c_char) -> *mut im_function;
-}
-extern "C" {
-    pub fn im_find_package(name: *const ::std::os::raw::c_char) -> *mut im_package;
-}
-extern "C" {
-    pub fn im_package_of_function(name: *const ::std::os::raw::c_char) -> *mut im_package;
-}
-extern "C" {
-    pub fn im_free_vargv(fn_: *mut im_function, vargv: *mut im_object) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_allocate_vargv(fn_: *mut im_function, vargv: *mut im_object)
-        -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_run_command(
-        name: *mut ::std::os::raw::c_char,
-        argc: ::std::os::raw::c_int,
-        argv: *mut *mut ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips__input_interpolate_init(
-        obj: *mut im_object,
-        str: *mut ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-pub const VipsBBits_IM_BBITS_FLOAT: VipsBBits = VipsBBits::IM_BBITS_INT;
-pub const VipsBBits_IM_BBITS_DOUBLE: VipsBBits = VipsBBits::IM_BBITS_COMPLEX;
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum VipsBBits {
-    IM_BBITS_BYTE = 8,
-    IM_BBITS_SHORT = 16,
-    IM_BBITS_INT = 32,
-    IM_BBITS_COMPLEX = 64,
-    IM_BBITS_DPCOMPLEX = 128,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct IMAGE_BOX {
-    pub xstart: ::std::os::raw::c_int,
-    pub ystart: ::std::os::raw::c_int,
-    pub xsize: ::std::os::raw::c_int,
-    pub ysize: ::std::os::raw::c_int,
-    pub chsel: ::std::os::raw::c_int,
-}
-#[test]
-fn bindgen_test_layout_IMAGE_BOX() {
-    assert_eq!(
-        ::std::mem::size_of::<IMAGE_BOX>(),
-        20usize,
-        concat!("Size of: ", stringify!(IMAGE_BOX))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<IMAGE_BOX>(),
-        4usize,
-        concat!("Alignment of ", stringify!(IMAGE_BOX))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<IMAGE_BOX>())).xstart as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(IMAGE_BOX),
-            "::",
-            stringify!(xstart)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<IMAGE_BOX>())).ystart as *const _ as usize },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(IMAGE_BOX),
-            "::",
-            stringify!(ystart)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<IMAGE_BOX>())).xsize as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(IMAGE_BOX),
-            "::",
-            stringify!(xsize)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<IMAGE_BOX>())).ysize as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(IMAGE_BOX),
-            "::",
-            stringify!(ysize)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<IMAGE_BOX>())).chsel as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(IMAGE_BOX),
-            "::",
-            stringify!(chsel)
-        )
-    );
-}
-extern "C" {
-    pub fn im_extract(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: *mut IMAGE_BOX,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_measure(
-        im: *mut VipsImage,
-        box_: *mut IMAGE_BOX,
-        h: ::std::os::raw::c_int,
-        v: ::std::os::raw::c_int,
-        sel: *mut ::std::os::raw::c_int,
-        nsel: ::std::os::raw::c_int,
-        name: *const ::std::os::raw::c_char,
-    ) -> *mut DOUBLEMASK;
-}
-extern "C" {
-    pub fn im_isuint(im: *mut VipsImage) -> gboolean;
-}
-extern "C" {
-    pub fn im_isint(im: *mut VipsImage) -> gboolean;
-}
-extern "C" {
-    pub fn im_isfloat(im: *mut VipsImage) -> gboolean;
-}
-extern "C" {
-    pub fn im_isscalar(im: *mut VipsImage) -> gboolean;
-}
-extern "C" {
-    pub fn im_iscomplex(im: *mut VipsImage) -> gboolean;
-}
-extern "C" {
-    pub fn im_c2ps(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum im_arch_type {
-    IM_ARCH_NATIVE = 0,
-    IM_ARCH_BYTE_SWAPPED = 1,
-    IM_ARCH_LSB_FIRST = 2,
-    IM_ARCH_MSB_FIRST = 3,
-}
-extern "C" {
-    pub fn im_isnative(arch: im_arch_type) -> gboolean;
-}
-extern "C" {
-    pub fn im_copy_from(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        architecture: im_arch_type,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_errormsg(fmt: *const ::std::os::raw::c_char, ...);
-}
-extern "C" {
-    pub fn im_verrormsg(fmt: *const ::std::os::raw::c_char, ap: *mut __va_list_tag);
-}
-extern "C" {
-    pub fn im_errormsg_system(err: ::std::os::raw::c_int, fmt: *const ::std::os::raw::c_char, ...);
-}
-extern "C" {
-    pub fn im_diagnostics(fmt: *const ::std::os::raw::c_char, ...);
-}
-extern "C" {
-    pub fn im_warning(fmt: *const ::std::os::raw::c_char, ...);
-}
-extern "C" {
-    pub fn im_iterate(
-        im: *mut VipsImage,
-        start: VipsStartFn,
-        generate: im_generate_fn,
-        stop: VipsStopFn,
-        a: *mut ::std::os::raw::c_void,
-        b: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_render_priority(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut VipsImage,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        max: ::std::os::raw::c_int,
-        priority: ::std::os::raw::c_int,
-        notify: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut VipsImage,
-                arg2: *mut VipsRect,
-                arg3: *mut ::std::os::raw::c_void,
-            ),
-        >,
-        client: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cmulnorm(
-        in1: *mut VipsImage,
-        in2: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fav4(arg1: *mut *mut VipsImage, arg2: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gadd(
-        arg1: f64,
-        arg2: *mut VipsImage,
-        arg3: f64,
-        arg4: *mut VipsImage,
-        arg5: f64,
-        arg6: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_litecor(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: *mut VipsImage,
-        arg4: ::std::os::raw::c_int,
-        arg5: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_render_fade(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut VipsImage,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        max: ::std::os::raw::c_int,
-        fps: ::std::os::raw::c_int,
-        steps: ::std::os::raw::c_int,
-        priority: ::std::os::raw::c_int,
-        notify: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut VipsImage,
-                arg2: *mut VipsRect,
-                arg3: *mut ::std::os::raw::c_void,
-            ),
-        >,
-        client: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_render(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut VipsImage,
-        width: ::std::os::raw::c_int,
-        height: ::std::os::raw::c_int,
-        max: ::std::os::raw::c_int,
-        notify: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut VipsImage,
-                arg2: *mut VipsRect,
-                arg3: *mut ::std::os::raw::c_void,
-            ),
-        >,
-        client: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cooc_matrix(
-        im: *mut VipsImage,
-        m: *mut VipsImage,
-        xp: ::std::os::raw::c_int,
-        yp: ::std::os::raw::c_int,
-        xs: ::std::os::raw::c_int,
-        ys: ::std::os::raw::c_int,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-        flag: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cooc_asm(m: *mut VipsImage, asmoment: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cooc_contrast(m: *mut VipsImage, contrast: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cooc_correlation(m: *mut VipsImage, correlation: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_cooc_entropy(m: *mut VipsImage, entropy: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_glds_matrix(
-        im: *mut VipsImage,
-        m: *mut VipsImage,
-        xpos: ::std::os::raw::c_int,
-        ypos: ::std::os::raw::c_int,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_glds_asm(m: *mut VipsImage, asmoment: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_glds_contrast(m: *mut VipsImage, contrast: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_glds_entropy(m: *mut VipsImage, entropy: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_glds_mean(m: *mut VipsImage, mean: *mut f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dif_std(
-        im: *mut VipsImage,
-        xpos: ::std::os::raw::c_int,
-        ypos: ::std::os::raw::c_int,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        dx: ::std::os::raw::c_int,
-        dy: ::std::os::raw::c_int,
-        pmean: *mut f64,
-        pstd: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_simcontr(
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_spatres(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        step: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_stretch3(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        dx: f64,
-        dy: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_remainderconst_vec(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        n: ::std::os::raw::c_int,
-        c: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_andconst(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_and_vec(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: ::std::os::raw::c_int,
-        arg4: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_orconst(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_or_vec(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: ::std::os::raw::c_int,
-        arg4: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eorconst(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_eor_vec(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: ::std::os::raw::c_int,
-        arg4: *mut f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_affine(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        a: f64,
-        b: f64,
-        c: f64,
-        d: f64,
-        dx: f64,
-        dy: f64,
-        ox: ::std::os::raw::c_int,
-        oy: ::std::os::raw::c_int,
-        ow: ::std::os::raw::c_int,
-        oh: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_similarity(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        a: f64,
-        b: f64,
-        dx: f64,
-        dy: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_similarity_area(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        a: f64,
-        b: f64,
-        dx: f64,
-        dy: f64,
-        ox: ::std::os::raw::c_int,
-        oy: ::std::os::raw::c_int,
-        ow: ::std::os::raw::c_int,
-        oh: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_icc_export(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        output_profile_filename: *const ::std::os::raw::c_char,
-        intent: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2dcm(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2cm(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2us(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2ui(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2s(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2i(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2d(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2f(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_clip2c(in_: *mut VipsImage, out: *mut VipsImage) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_slice(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        arg1: f64,
-        arg2: f64,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_thresh(in_: *mut VipsImage, out: *mut VipsImage, arg1: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_print(message: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsub(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-        xskip: ::std::os::raw::c_int,
-        yskip: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_bernd(
-        tiffname: *const ::std::os::raw::c_char,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        w: ::std::os::raw::c_int,
-        h: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_resize_linear(
-        arg1: *mut VipsImage,
-        arg2: *mut VipsImage,
-        arg3: ::std::os::raw::c_int,
-        arg4: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convf(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsepf(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_conv_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convf_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsep_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_convsepf_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        mask: *mut DOUBLEMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fastcor_raw(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_spcor_raw(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_gradcor_raw(
-        in_: *mut VipsImage,
-        ref_: *mut VipsImage,
-        out: *mut VipsImage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_erode_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        m: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_dilate_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        m: *mut INTMASK,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_rank_raw(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        xsize: ::std::os::raw::c_int,
-        ysize: ::std::os::raw::c_int,
-        order: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_circle(
-        im: *mut VipsImage,
-        cx: ::std::os::raw::c_int,
-        cy: ::std::os::raw::c_int,
-        radius: ::std::os::raw::c_int,
-        intensity: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_line(
-        arg1: *mut VipsImage,
-        arg2: ::std::os::raw::c_int,
-        arg3: ::std::os::raw::c_int,
-        arg4: ::std::os::raw::c_int,
-        arg5: ::std::os::raw::c_int,
-        arg6: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_segment(
-        test: *mut VipsImage,
-        mask: *mut VipsImage,
-        segments: *mut ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_paintrect(
-        im: *mut VipsImage,
-        r: *mut VipsRect,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_insertplace(
-        main: *mut VipsImage,
-        sub: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood_copy(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood_blob_copy(
-        in_: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood_other_copy(
-        test: *mut VipsImage,
-        mark: *mut VipsImage,
-        out: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        serial: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood(
-        im: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood_blob(
-        im: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_flood_other(
-        test: *mut VipsImage,
-        mark: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        serial: ::std::os::raw::c_int,
-        dout: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fastline(
-        im: *mut VipsImage,
-        x1: ::std::os::raw::c_int,
-        y1: ::std::os::raw::c_int,
-        x2: ::std::os::raw::c_int,
-        y2: ::std::os::raw::c_int,
-        pel: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_fastlineuser(
-        im: *mut VipsImage,
-        x1: ::std::os::raw::c_int,
-        y1: ::std::os::raw::c_int,
-        x2: ::std::os::raw::c_int,
-        y2: ::std::os::raw::c_int,
-        fn_: VipsPlotFn,
-        client1: *mut ::std::os::raw::c_void,
-        client2: *mut ::std::os::raw::c_void,
-        client3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_plotmask(
-        im: *mut VipsImage,
-        ix: ::std::os::raw::c_int,
-        iy: ::std::os::raw::c_int,
-        ink: *mut VipsPel,
-        mask: *mut VipsPel,
-        r: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_readpoint(
-        im: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        pel: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_plotpoint(
-        im: *mut VipsImage,
-        x: ::std::os::raw::c_int,
-        y: ::std::os::raw::c_int,
-        pel: *mut VipsPel,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_smudge(
-        image: *mut VipsImage,
-        ix: ::std::os::raw::c_int,
-        iy: ::std::os::raw::c_int,
-        r: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn im_smear(
-        im: *mut VipsImage,
-        ix: ::std::os::raw::c_int,
-        iy: ::std::os::raw::c_int,
-        r: *mut VipsRect,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn vips_warn(
-        domain: *const ::std::os::raw::c_char,
-        fmt: *const ::std::os::raw::c_char,
-        ...
-    );
-}
-extern "C" {
-    pub fn vips_vwarn(
-        domain: *const ::std::os::raw::c_char,
-        fmt: *const ::std::os::raw::c_char,
-        ap: *mut __va_list_tag,
-    );
-}
-extern "C" {
-    pub fn vips_info_set(info: gboolean);
-}
-extern "C" {
-    pub fn vips_info(
-        domain: *const ::std::os::raw::c_char,
-        fmt: *const ::std::os::raw::c_char,
-        ...
-    );
-}
-extern "C" {
-    pub fn vips_vinfo(
-        domain: *const ::std::os::raw::c_char,
-        fmt: *const ::std::os::raw::c_char,
-        ap: *mut __va_list_tag,
-    );
 }
 extern "C" {
     pub fn vips_init(argv0: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
